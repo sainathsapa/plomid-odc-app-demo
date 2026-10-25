@@ -50,7 +50,13 @@ def _clean_test_rows(repo) -> None:
         "test-clean-valruns",
         "DELETE FROM odc_validation_run WHERE run_id LIKE 'val-%' OR run_id = 'run-1'",
     )
-    repo._run("test-clean-cam", "DELETE FROM odc_camera_status WHERE camera_id = 'cabin0'")
+    # Only test-session/test-camera rows. The live camera row has
+    # session_id NULL and camera_id cabin0; an unscoped delete here wiped
+    # real state when tests ran against a live DB.
+    repo._run(
+        "test-clean-cam",
+        f"DELETE FROM odc_camera_status WHERE {filt} OR camera_id LIKE 'test-%'",
+    )
     repo._run("test-clean-sessions", f"DELETE FROM odc_session WHERE {filt}")
     repo._run(
         "test-clean-models",
@@ -182,7 +188,7 @@ def model_manifest() -> d.ModelManifest:
 @pytest.fixture()
 def camera_health() -> d.CameraHealth:
     return d.CameraHealth(
-        camera_id="cabin0",
+        camera_id="test-cabin0",
         session_id="ses-test",
         status=d.HealthStatus.HEALTHY,
         fps_observed=5.0,
