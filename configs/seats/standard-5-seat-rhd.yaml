@@ -1,0 +1,15 @@
+# Default operator layout.  Seat IDs are stable persistence keys; labels are
+# the one-based operator labels.  Geometry is a starting camera profile and
+# must be calibrated for a particular installed camera before seat assignment
+# is treated as reliable.
+camera_profile: standard-cabin-rhd
+version: standard-5-seat-rhd-v1
+layout_type: standard-5-seat
+orientation: RHD
+display_name: Standard five-seat cabin (RHD)
+seats:
+  - {seat_id: seat_1, label: Seat 1, display_number: 1, physical_role: driver, row: 1, col: 1, polygon: [[0.12, 0.08], [0.48, 0.08], [0.48, 0.42], [0.12, 0.42]], camera_profile: standard-cabin-rhd, version: standard-5-seat-rhd-v1}
+  - {seat_id: seat_2, label: Seat 2, display_number: 2, physical_role: front_passenger, row: 1, col: 2, polygon: [[0.52, 0.08], [0.88, 0.08], [0.88, 0.42], [0.52, 0.42]], camera_profile: standard-cabin-rhd, version: standard-5-seat-rhd-v1}
+  - {seat_id: seat_3, label: Seat 3, display_number: 3, physical_role: rear_left, row: 2, col: 1, polygon: [[0.08, 0.55], [0.34, 0.55], [0.34, 0.92], [0.08, 0.92]], camera_profile: standard-cabin-rhd, version: standard-5-seat-rhd-v1}
+  - {seat_id: seat_4, label: Seat 4, display_number: 4, physical_role: rear_center, row: 2, col: 2, polygon: [[0.37, 0.55], [0.63, 0.55], [0.63, 0.92], [0.37, 0.92]], camera_profile: standard-cabin-rhd, version: standard-5-seat-rhd-v1}
+  - {seat_id: seat_5, label: Seat 5, display_number: 5, physical_role: rear_right, row: 2, col: 3, polygon: [[0.66, 0.55], [0.92, 0.55], [0.92, 0.92], [0.66, 0.92]], camera_profile: standard-cabin-rhd, version: standard-5-seat-rhd-v1}

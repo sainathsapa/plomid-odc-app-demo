@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block main %}
+<div class="page-head" title="Recorded evaluation runs — thresholds are never tuned on the final split">
+<div>
+<p class="eyebrow">Quality · Evaluation</p>
+<h1>Validation runs</h1>
+<p class="sub">Recorded runs with build, dataset, hardware and status. Unsupported attributes stay visible.</p>
+</div>
+</div>
+<div class="card" title="Validation runs recorded in PLOMID">
+{% if runs %}
+<table class="data">
+<tr><th>Run</th><th>Build</th><th>Dataset</th><th>Hardware</th><th>Status</th></tr>
+{% for r in runs %}
+<tr><td>{{ r.run_id }}</td><td>{{ r.build_version }}</td><td>{{ r.dataset_id }}</td>
+<td>{{ r.hardware_profile }}</td><td>{{ r.status }}</td></tr>
+{% endfor %}
+</table>
+{% else %}
+<div class="empty">No validation runs recorded yet. Labeled evaluation lands in Phase 9;
+observational detector reports come from <code>odc detect</code>.</div>
+{% endif %}
+<p class="muted">Holdout discipline: thresholds are never tuned on the final split.
+Unsupported attributes stay visible instead of silently passing.</p>
+</div>
+{% endblock %}

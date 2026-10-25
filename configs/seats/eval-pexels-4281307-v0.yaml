@@ -1,0 +1,8 @@
+# Camera-specific evaluation geometry for Pexels 4281307, exterior side view.
+camera_profile: pexels-4281307-exterior-profile
+version: eval-pexels-4281307-v0
+seats:
+  - seat_id: driver-seat
+    polygon: [[0.15, 0.0], [0.88, 0.0], [0.88, 1.0], [0.15, 1.0]]
+    camera_profile: pexels-4281307-exterior-profile
+    version: eval-pexels-4281307-v0

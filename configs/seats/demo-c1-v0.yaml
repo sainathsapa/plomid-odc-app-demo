@@ -1,0 +1,19 @@
+# Demo seat layout for footage/C1_baby_carseat.mp4 — version demo-c1-v2.
+# Tightened 2026-10-23 after real MiVOLO replay: the v1 polygon included the
+# adult handler's torso and assigned that adult to the carrier seat. Keep the
+# carrier ROI on the lower occupant area; adult/child labels still come only
+# from MiVOLO evidence for an associated person track.
+# (Previous v0 mislabeled the empty right seat as the baby seat, which let
+# chair hits on bare upholstery confirm a bogus restraint.)
+# Coordinates normalized 0..1, x→right, y→down, 1920x1080.
+camera_profile: carrier-side-c1
+version: demo-c1-v2
+seats:
+  - seat_id: infant-carrier
+    polygon: [[0.20, 0.53], [0.66, 0.53], [0.66, 1.0], [0.20, 1.0]]
+    camera_profile: carrier-side-c1
+    version: demo-c1-v2
+  - seat_id: seat-right
+    polygon: [[0.62, 0.05], [1.0, 0.05], [1.0, 1.0], [0.62, 1.0]]
+    camera_profile: carrier-side-c1
+    version: demo-c1-v2

@@ -1,0 +1,16 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+.phase0-data/
+reports/
+models/*/
+!models/manifests/
+models/*.pth
+models/*.pt
+models/*.bin
+models/*.safetensors
+models/*.onnx
+models/*.task

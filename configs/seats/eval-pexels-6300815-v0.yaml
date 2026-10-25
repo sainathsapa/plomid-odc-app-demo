@@ -1,0 +1,8 @@
+# Camera-specific evaluation geometry for Pexels 6300815, side cabin view.
+camera_profile: pexels-6300815-side-cabin
+version: eval-pexels-6300815-v0
+seats:
+  - seat_id: child-seat
+    polygon: [[0.16, 0.15], [0.62, 0.15], [0.62, 1.0], [0.16, 1.0]]
+    camera_profile: pexels-6300815-side-cabin
+    version: eval-pexels-6300815-v0

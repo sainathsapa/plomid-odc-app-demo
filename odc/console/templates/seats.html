@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+.layout.wide-workspace main { max-width: none; }
+.seat-workspace { display:grid; gap:16px; }
+.seat-overview { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(280px,.75fr); gap:14px; align-items:stretch; }
+.seat-overview > .card { margin:0; min-width:0; }
+.seat-map-card { display:flex; flex-direction:column; }
+.seat-map-card #seatmap-wrap { flex:1; min-height:320px; }
+.seat-map-card #seatmap-live svg { max-height: min(56vh,680px); }
+.seat-detail-card { display:flex; flex-direction:column; }
+.seat-detail-card #inspector { flex:1; }
+.seat-detail-card .seat-detail-close { width:30px; min-height:30px; padding:0; font-size:18px; line-height:1; }
+.seat-summary { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+.seat-summary .count { min-width:105px; flex:1; }
+.seat-attributes { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; }
+.seat-attribute-card { min-width:0; padding:14px; border:1px solid var(--line-d); border-radius:var(--radius); background:var(--surface-raised); }
+.seat-attribute-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-bottom:10px; border-bottom:1px solid var(--line-d); }
+.seat-attribute-head h3 { margin:0; font-size:15px; }
+.seat-attribute-card dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 18px; margin:12px 0 0; }
+.seat-attribute-card dl > div { min-width:0; }
+.seat-attribute-card dt { color:var(--t-d3); font:11px var(--mono); letter-spacing:.05em; text-transform:uppercase; }
+.seat-attribute-card dd { margin:4px 0 0; overflow-wrap:anywhere; font-size:14px; line-height:1.4; }
+.seat-attribute-card .evidence-value { grid-column:1/-1; }
+.seat-workspace > .card { margin:0; }
+.seat-editor { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(340px, .85fr); gap: 16px; }
+.seat-editor > div { min-width: 0; }
+#mapedit-box { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; overflow: hidden; border-radius:var(--radius); }
+#mapedit-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+#mapedit-box svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#seatmap-wrap { position: relative; }
+#seatmap-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+#seatmap-live { position: relative; }
+#seatmap-live svg { position: relative; width: 100%; height: auto; display: block; }
+.table-scroll { overflow-x: auto; max-width: 100%; }
+.ed-row { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; font-size: 12px; margin-top: 10px; }
+.ed-row input, .ed-row select { font-size: 13px; padding: 6px 8px; }
+.ed-row button { min-height:34px; padding: 6px 12px; font-size: 12px; }
+.ed-row button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-2); }
+.seat-chip { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 8px 4px; border-bottom: 1px solid var(--line-d); flex-wrap: wrap; }
+.seat-chip[aria-selected="true"] { background: var(--accent-08); }
+.seat-chip input { width: 90px; }
+.seat-chip input.num { width: 44px; }
+#mapedit-warns { font-size: 12px; margin-top: 6px; }
+#mapedit-warns .warn { color: var(--seat-uncertain); }
+#mapedit-warns .err { color: var(--seat-occupied); }
+#mapedit-warns .ok { color: var(--seat-empty); }
+@media (max-width: 1100px) { .seat-overview,.seat-editor { grid-template-columns: 1fr; } .seat-map-card #seatmap-wrap { min-height:240px; } }
+@media (max-width: 600px) { .seat-attribute-card dl { grid-template-columns:1fr 1fr; } .seat-attribute-card { padding:11px; } }
+</style>
+{% endblock %}
+{% block main %}
+<div class="page-head" title="Seat geometry: the cabin truth every overlay, count and alert is judged against">
+<div>
+<p class="eyebrow">Geometry · Seats</p>
+<h1>Seat map</h1>
+<p class="sub">Inspect current seat evidence and calibrate the zones used to assign occupants.</p>
+</div>
+<div class="actions">
+<span class="pill">{{ badge }}</span>
+<button type="button" class="ghost seatview-btn" data-view="car" title="Vehicle schematic: seats arranged as a cabin diagram">Schematic</button>
+<button type="button" class="ghost seatview-btn" data-view="poly" title="True calibrated zones — exact polygons over the frame">Zones</button>
+</div>
+</div>
+<div class="seat-workspace">
+{% if layout.layout_type == 'auto-proposal' or (snapshot is not none and not snapshot.calibrated) %}
+<div class="ghost-note muted" role="status">{% if snapshot is not none and not snapshot.calibrated %}<strong>Seat geometry is uncalibrated.</strong> Person evidence may be available, but seat-level states remain UNKNOWN until zones match this camera view.{% endif %}{% if layout.layout_type == 'auto-proposal' %}<strong> Review the proposed zones below.</strong> They were inferred from video hotspots; confirm zone boundaries and steering side before using the layout.{% endif %}</div>
+{% endif %}
+<div class="seat-overview">
+<section class="card seat-map-card" title="Cabin seat map — colours follow live presence">
+<div class="card-head"><h2>Cabin geometry</h2><span class="spacer"></span><span class="muted">Layout {{ layout.version }} · {{ layout.seats|length }} seats</span></div>
+<div id="seatmap-wrap">
+<img id="seatmap-frame" alt="Latest frame behind zones" style="display:none">
+<div id="seatmap-live">
+{% include "partials/_seatmap.html" %}
+</div>
+</div>
+<div class="legend">
+{% for color, label in legend %}
+<span class="legend-item"><span class="swatch" data-state="{{ label|lower|replace(' ', '-') }}"></span>{{ label }}</span>
+{% endfor %}
+</div>
+<p class="muted">Schematic arranges real seat zones as a cabin; Zones shows true
+calibrated geometry over the live frame. Base fill = occupancy (blue = child, yellow = uncertain);
+purple ring = child-safety-seat candidate, orange ring = belt issue. Gray
+Unknown means weak evidence — never a hidden negative. Layout {{ layout.version }}.</p>
+{% if counts %}
+<div class="seat-summary" aria-label="Current seat counts">
+<div class="count"><span>Seats</span><strong>{{ counts.get('total', 0) }}</strong></div>
+<div class="count"><span>Occupied</span><strong style="color:var(--seat-occupied)">{{ counts.get('occupied', 0) }}</strong></div>
+<div class="count"><span>Children</span><strong style="color:var(--seat-child)">{{ counts.get('children', 0) }}</strong></div>
+<div class="count"><span>Unknown</span><strong style="color:var(--seat-unknown)">{{ counts.get('unknown', 0) }}</strong></div>
+<div class="count"><span>Restraint candidates</span><strong style="color:var(--seat-restraint)">{{ counts.get('restraints', 0) }}</strong></div>
+<div class="count"><span>Belt issues</span><strong style="color:var(--seat-belt)">{{ counts.get('belt_issue', 0) }}</strong></div>
+</div>
+{% endif %}
+</section>
+<section class="card seat-detail-card" aria-label="Selected seat evidence">
+<div class="card-head"><h2>Selected seat</h2><span class="spacer"></span><button type="button" class="ghost seat-detail-close" data-seat-detail-close aria-label="Close selected seat details" title="Close selected seat details">×</button></div>
+<div id="inspector"><div class="inspector-empty"><p class="eyebrow">Seat details</p><strong>Select a seat on the map</strong><p class="muted">Presence, occupant class, visibility and evidence will appear here.</p></div></div>
+</section>
+</div>
+{% if seat_rows %}
+<section class="card">
+<div class="card-head"><h2>Seat attributes</h2><span class="spacer"></span><span class="muted">Latest available state · {{ seat_rows|length }} seats</span></div>
+<div class="seat-attributes">
+{% for r in seat_rows %}
+<article class="seat-attribute-card">
+<div class="seat-attribute-head"><h3>{{ r.display_name or r.seat_id }}</h3><span class="pill">{{ r.presence }}</span></div>
+<dl>
+<div><dt>Occupant</dt><dd>{{ r.occupant_category or 'Unknown' }}</dd></div>
+<div><dt>Child occupant</dt><dd>{{ r.child }}{% if r.child_candidate and r.child != 'Yes' %} · possible{% endif %}</dd></div>
+<div><dt>Child restraint</dt><dd>{{ 'Unverified candidate' if r.restraint_candidate else r.restraint }}</dd></div>
+<div><dt>Seat belt</dt><dd>{{ 'Strap candidate' if r.belt == 'Detected' else r.belt }}</dd></div>
+<div><dt>Posture</dt><dd>{{ r.pose if r.pose is not none else 'Unknown' }}</dd></div>
+<div><dt>Driver monitoring</dt><dd>{{ r.dms_text if r.dms_text is defined else 'Unavailable' }}</dd></div>
+<div><dt>Appearance</dt><dd>{{ {'APPARENT_MAN': 'Masculine appearance', 'APPARENT_WOMAN': 'Feminine appearance'}.get(r.gender if r.gender is defined else '', 'Not assessed') }}</dd></div>
+<div><dt>Occupancy confidence</dt><dd>{{ '%.2f' % r.confidence if r.confidence is not none else 'Unavailable' }}</dd></div>
+<div><dt>Visibility</dt><dd>{{ r.visibility or 'Unknown' }}</dd></div>
+<div><dt>Tracks</dt><dd>{{ r.track_ids|join(', ') if r.track_ids else 'None' }}</dd></div>
+<div class="evidence-value"><dt>Evidence reasons</dt><dd>{{ r.reason_codes|join(', ') if r.reason_codes else 'No reason codes available' }}</dd></div>
+</dl>
+</article>
+{% endfor %}
+</div>
+<p class="muted">A strap candidate is not verification of belt identity or fastening. Unknown indicates insufficient or occluded evidence. DMS requires the face option at Start and is preview-grade.</p>
+</section>
+{% endif %}
+<section class="card">
+<div class="card-head"><h2>Calibrate seat zones</h2><span class="spacer"></span><span class="muted">Active layout · {{ layout.version }}</span></div>
+<p class="muted" style="margin-top:0">Select / move is ready by default: drag a zone to reposition it or drag a corner to resize. Use Trace new or Rectangle only when adding a seat. Save applies the layout immediately, including to a running session. Seat identifiers are labels only; they do not determine occupant attributes.</p>
+<div class="seat-editor">
+<div>
+<h3>Edit seat zones</h3>
+<p class="muted">Select an existing zone to move or resize it. Choose Trace new for a polygon, or Rectangle to add a rectangular zone.</p>
+<div id="mapedit-box"><img id="mapedit-frame" alt="Frozen frame to trace" style="display:none"><svg id="mapedit-svg" viewBox="0 0 1000 1000" preserveAspectRatio="none" role="img" aria-label="Editable seat map"></svg></div>
+<div class="ed-row">
+<button type="button" class="ghost" onclick="meCapture()">Capture frame</button>
+<button type="button" id="me-add" aria-pressed="false" onclick="meSetMode('add')">Trace new</button>
+<button type="button" id="me-rect" aria-pressed="false" onclick="meSetMode('rect')">Rectangle</button>
+<button type="button" id="me-move" aria-pressed="true" onclick="meSetMode('move')">Select / move</button>
+<button type="button" class="ghost" onclick="meUndo()">Undo</button>
+<button type="button" class="ghost" onclick="meRedo()">Redo</button>
+<button type="button" class="ghost" onclick="meZoomIn()">Zoom +</button>
+<button type="button" class="ghost" onclick="meZoomOut()">Zoom −</button>
+<button type="button" class="ghost" onclick="meReload()">Reload active</button>
+<label>New seat ID <input id="me-name" value="seat-1" size="10"></label>
+<span id="me-hint" class="muted">Select a seat, then drag to move it or drag a corner to resize.</span>
+</div>
+<div class="ed-row"><button type="button" id="me-commit" onclick="meCommit()" disabled>Add seat</button><button type="button" class="ghost" onclick="meClearPts()">Clear points</button></div>
+<div id="mapedit-warns" aria-live="polite"></div><div id="mapedit-rows" class="muted"></div>
+</div>
+<div>
+<h3>Layout settings</h3>
+<div class="ed-row"><label>Use saved layout <select id="me-layout" aria-label="Saved layouts"></select></label><button type="button" class="ghost" onclick="meApplyNamed()">Apply</button><span id="me-active" class="muted"></span></div>
+<div id="me-list"><p class="muted">Loading active layout…</p></div>
+<div class="ed-row"><label>Save as <input id="me-save-name" value="" size="16" placeholder="layout name"></label><label><input type="checkbox" id="me-overwrite"> overwrite</label><button type="button" onclick="meSave()">Save layout</button><span id="me-status" class="muted" aria-live="polite"></span></div>
+</div>
+</div>
+</section>
+</div>
+<script>
+let seatView = 'car';
+try { seatView = localStorage.getItem('odc-seatview') || '{{ seat_view }}'; } catch (e) { seatView = '{{ seat_view }}'; }
+function paintSeatViewButtons() {
+  document.querySelectorAll('.seatview-btn').forEach((x) => {
+    x.style.borderColor = x.getAttribute('data-view') === seatView ? 'var(--accent)' : '';
+  });
+}
+function refreshSeatMap() {
+  const box = document.getElementById('seatmap-live');
+  if (!box || typeof htmx === 'undefined') return;
+  htmx.ajax('GET', `/partials/seat-map?view=${seatView}{% if session %}&session={{ session }}{% endif %}`, '#seatmap-live');
+}
+document.querySelectorAll('.seatview-btn').forEach((b) => {
+  b.addEventListener('click', () => {
+    seatView = b.getAttribute('data-view') || 'car';
+    try { localStorage.setItem('odc-seatview', seatView); } catch (e) {}
+    paintSeatViewButtons();
+    refreshSeatMap();
+    syncSeatmapFrame(seatView);
+  });
+});
+function syncSeatmapFrame(view) {
+  const img = document.getElementById('seatmap-frame');
+  if (!img) return;
+  if ((view || seatView) === 'poly') {
+    img.style.display = '';
+    img.src = `/frame.jpeg?v=${Date.now()}`;
+  } else {
+    img.style.display = 'none';
+    img.removeAttribute('src');
+  }
+}
+if (typeof htmx !== 'undefined') {
+  document.body.addEventListener('htmx:afterSwap', (e) => {
+    if (e.target && e.target.id === 'seatmap-live') syncSeatmapFrame();
+  });
+  // The poll follows the CURRENT view (never reverts a manual switch).
+  setInterval(() => { refreshSeatMap(); if (seatView === 'poly') syncSeatmapFrame(); }, 3000);
+}
+paintSeatViewButtons();
+syncSeatmapFrame();
+(function () {
+  const COLORS = ['#22c55e','#38bdf8','#eab308','#f472b6','#a78bfa','#34d399','#f97316','#94a3b8'];
+  let seats = [];
+  let version = '';
+  let points = [];
+  let mode = 'add';
+  let selected = -1;
+  let undoStack = [], redoStack = [];
+  let dirty = false;
+  let viewBox = { x: 0, y: 0, w: 1000, h: 1000 };
+  let dragRect = null;
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const svg = () => document.getElementById('mapedit-svg');
+  const toNorm = (e) => {
+    const r = svg().getBoundingClientRect();
+    const vb = viewBox;
+    const x = vb.x + ((e.clientX - r.left) / r.width) * vb.w;
+    const y = vb.y + ((e.clientY - r.top) / r.height) * vb.h;
+    return [Math.min(1, Math.max(0, x / 1000)), Math.min(1, Math.max(0, y / 1000))];
+  };
+  function applyViewBox() {
+    svg().setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+  }
+  window.meSetMode = (m) => {
+    mode = m;
+    document.getElementById('me-add').setAttribute('aria-pressed', m === 'add' ? 'true' : 'false');
+    document.getElementById('me-rect').setAttribute('aria-pressed', m === 'rect' ? 'true' : 'false');
+    document.getElementById('me-move').setAttribute('aria-pressed', m === 'move' ? 'true' : 'false');
+    document.getElementById('me-hint').textContent = m === 'add'
+      ? 'Trace mode: click ≥3 points on the map, then Add.'
+      : m === 'rect' ? 'Rectangle: drag on the frame to create a zone.'
+      : 'Move mode: click a zone to select, drag to move, drag white corners to resize, Delete removes.';
+  };
+  function pushUndo() { undoStack.push(JSON.stringify(seats)); if (undoStack.length > 50) undoStack.shift(); redoStack = []; }
+  window.meUndo = () => { if (!undoStack.length) return; redoStack.push(JSON.stringify(seats)); seats = JSON.parse(undoStack.pop()); dirty = true; meDraw(); meValidate(); };
+  window.meRedo = () => { if (!redoStack.length) return; undoStack.push(JSON.stringify(seats)); seats = JSON.parse(redoStack.pop()); dirty = true; meDraw(); meValidate(); };
+  window.meClearPts = () => { points = []; dragRect = null; meDraw(); };
+  window.meZoomIn = () => { viewBox.w = Math.max(200, viewBox.w * 0.8); viewBox.h = Math.max(200, viewBox.h * 0.8); applyViewBox(); };
+  window.meZoomOut = () => {
+    const cx = viewBox.x + viewBox.w / 2, cy = viewBox.y + viewBox.h / 2;
+    viewBox.w = Math.min(1000, viewBox.w * 1.25); viewBox.h = Math.min(1000, viewBox.h * 1.25);
+    viewBox.x = Math.min(1000 - viewBox.w, Math.max(0, cx - viewBox.w / 2));
+    viewBox.y = Math.min(1000 - viewBox.h, Math.max(0, cy - viewBox.h / 2));
+    applyViewBox();
+  };
+  window.meCapture = () => {
+    const img = document.getElementById('mapedit-frame');
+    img.src = `/frame.jpeg?v=${Date.now()}`;
+    img.style.display = '';
+  };
+  function polyArea(poly) {
+    let a = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const [x0, y0] = poly[i], [x1, y1] = poly[(i + 1) % poly.length];
+      a += x0 * y1 - x1 * y0;
+    }
+    return Math.abs(a) / 2;
+  }
+  function overlaps() {
+    const pairs = new Set();
+    const bb = (p) => { const xs = p.map((q) => q[0]), ys = p.map((q) => q[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; };
+    for (let i = 0; i < seats.length; i++) for (let j = i + 1; j < seats.length; j++) {
+      const [ax0, ay0, ax1, ay1] = bb(seats[i].polygon), [bx0, by0, bx1, by1] = bb(seats[j].polygon);
+      if (ax0 < bx1 && bx0 < ax1 && ay0 < by1 && by0 < ay1) pairs.add(i + ':' + j);
+    }
+    return pairs;
+  }
+  function meDraw() {
+    const ov = overlaps();
+    const bad = new Set();
+    ov.forEach((k) => { const [a, b] = k.split(':').map(Number); bad.add(a); bad.add(b); });
+    let html = '';
+    seats.forEach((s, i) => {
+      const pts = s.polygon.map((p) => `${(p[0]*1000).toFixed(1)},${(p[1]*1000).toFixed(1)}`).join(' ');
+      const c = bad.has(i) ? '#ef4444' : COLORS[i % COLORS.length];
+      const cx = s.polygon.reduce((a, p) => a + p[0], 0) / s.polygon.length * 1000;
+      const cy = s.polygon.reduce((a, p) => a + p[1], 0) / s.polygon.length * 1000;
+      html += `<g data-seat="${i}">` +
+        `<polygon points="${pts}" fill="${c}" fill-opacity="${i === selected ? 0.5 : 0.30}" stroke="${c}" stroke-width="${i === selected ? 8 : 4}"${bad.has(i) ? ' stroke-dasharray="14 8"' : ''}><title>${esc(s.seat_id)}${bad.has(i) ? ' — OVERLAP' : ''}</title></polygon>` +
+        `<text x="${cx.toFixed(0)}" y="${cy.toFixed(0)}" fill="#fff" font-size="24" text-anchor="middle" style="paint-order:stroke" stroke="#000" stroke-width="4">${esc(s.seat_id)}</text></g>`;
+    });
+    if (points.length) {
+      const pts = points.map((p) => `${(p[0]*1000).toFixed(1)},${(p[1]*1000).toFixed(1)}`).join(' ');
+      html += `<polyline points="${pts}" fill="none" stroke="#fff" stroke-width="3"/>`;
+      points.forEach((p) => { html += `<circle cx="${(p[0]*1000).toFixed(1)}" cy="${(p[1]*1000).toFixed(1)}" r="9" fill="#fff"/>`; });
+    }
+    if (dragRect) {
+      const [x0, y0, x1, y1] = dragRect;
+      html += `<rect x="${(Math.min(x0,x1)*1000).toFixed(1)}" y="${(Math.min(y0,y1)*1000).toFixed(1)}" width="${(Math.abs(x1-x0)*1000).toFixed(1)}" height="${(Math.abs(y1-y0)*1000).toFixed(1)}" fill="#fff" fill-opacity="0.2" stroke="#fff" stroke-width="3" stroke-dasharray="10 6"/>`;
+    }
+    if (selected >= 0 && selected < seats.length && mode === 'move') {
+      // Resize handles on the selected zone's bounding box; dragging one
+      // scales the whole polygon about the opposite corner. Handle centers
+      // clamp inside the viewport: edge-touching zones would otherwise get
+      // half-clipped, ungrabbable handles (the math still uses true corners).
+      const poly = seats[selected].polygon;
+      const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]);
+      const bx0 = Math.min(...xs) * 1000, by0 = Math.min(...ys) * 1000;
+      const bx1 = Math.max(...xs) * 1000, by1 = Math.max(...ys) * 1000;
+      const clampV = (v) => Math.min(984, Math.max(16, v));
+      const cursors = ['nwse-resize', 'nesw-resize', 'nwse-resize', 'nesw-resize'];
+      [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]].forEach(([hx, hy], k) => {
+        const dx = clampV(hx), dy = clampV(hy);
+        html += `<rect data-handle="${k}" x="${(dx - 14).toFixed(1)}" y="${(dy - 14).toFixed(1)}" width="28" height="28" rx="6" fill="#fff" stroke="#111827" stroke-width="3" style="cursor:${cursors[k]}"><title>Drag to resize</title></rect>`;
+      });
+    }
+    svg().innerHTML = html;
+    document.getElementById('me-commit').disabled = !(points.length >= 3);
+    document.getElementById('me-list').innerHTML = seats.length ? seats.map((s, i) =>
+      `<div class="seat-chip" aria-selected="${i === selected}" data-row="${i}">` +
+      `<input data-f="seat_id" data-i="${i}" value="${esc(s.seat_id)}">` +
+      `<label class="muted">Row <input class="num" data-f="row" data-i="${i}" type="number" min="1" max="32" value="${s.row ?? 1}"></label>` +
+      `<label class="muted">Column <input class="num" data-f="col" data-i="${i}" type="number" min="1" max="32" value="${s.col ?? (i + 1)}"></label>` +
+      `<span class="muted">${s.polygon.length} pts · ${polyArea(s.polygon).toFixed(3)}</span>` +
+      (bad.has(i) ? '<strong style="color:#ef4444">overlap</strong>' : '') +
+      `<button class="ghost" data-del="${i}" style="padding:2px 8px;font-size:11px">Delete</button></div>`).join('')
+      : '<p class="muted">No seats. Capture a frame and trace each seat.</p>';
+  }
+  let vt = null;
+  async function meValidate() {
+    clearTimeout(vt);
+    vt = setTimeout(async () => {
+      const box = document.getElementById('mapedit-warns');
+      if (!seats.length) { box.innerHTML = '<div class="warn">No seats — map is uncalibrated.</div>'; return; }
+      try {
+        const r = await fetch('/api/layouts/validate', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'draft', seats }) });
+        const j = await r.json();
+        box.innerHTML = (j.errors || []).map((e) => `<div class="err">Error: ${esc(e)}</div>`).join('') +
+          (j.warnings || []).map((w) => `<div class="warn">Warning: ${esc(w)}</div>`).join('') +
+          ((!j.errors?.length && !j.warnings?.length) ? '<div class="ok">Layout clean.</div>' : '');
+        document.getElementById('mapedit-rows').textContent = (j.rows?.length ? 'Front → rear: ' + j.rows.map((x) => x.join(', ')).join(' · ') : '');
+      } catch (e) { box.innerHTML = `<div class="warn">Validation unavailable: ${esc(e)}</div>`; }
+    }, 300);
+  }
+  window.meValidate = meValidate;
+  let downAt = null, moveDrag = null, resizeDrag = null;
+  svg().addEventListener('pointerdown', (e) => {
+    try { svg().setPointerCapture && svg().setPointerCapture(e.pointerId); } catch (err) {}
+    downAt = toNorm(e);
+    if (mode === 'rect') { dragRect = [...downAt, ...downAt]; }
+    else if (mode === 'move') {
+      const handle = e.target.closest && e.target.closest('[data-handle]');
+      if (handle && selected >= 0 && selected < seats.length) {
+        const k = parseInt(handle.getAttribute('data-handle'), 10);
+        const poly = seats[selected].polygon;
+        const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]);
+        const bx0 = Math.min(...xs), by0 = Math.min(...ys);
+        const bx1 = Math.max(...xs), by1 = Math.max(...ys);
+        const corners = [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]];
+        pushUndo();
+        resizeDrag = { idx: selected, anchor: corners[(k + 2) % 4], start: corners[k], orig: poly.map((p) => [...p]) };
+        return;
+      }
+      const t = e.target.closest && e.target.closest('[data-seat]');
+      if (t) {
+        selected = parseInt(t.getAttribute('data-seat'), 10);
+        undoStack.push(JSON.stringify(seats.map((s, i) => i === selected ? { ...s, polygon: s.polygon.map((p) => [...p]) } : s)));
+        if (undoStack.length > 50) undoStack.shift();
+        redoStack = [];
+        moveDrag = { idx: selected, start: downAt, orig: seats[selected].polygon.map((p) => [...p]) };
+        meDraw();
+      }
+      else { selected = -1; meDraw(); }
+    }
+  });
+  svg().addEventListener('pointermove', (e) => {
+    if (!downAt) return;
+    const cur = toNorm(e);
+    if (mode === 'rect' && dragRect) { dragRect = [downAt[0], downAt[1], cur[0], cur[1]]; meDraw(); }
+    else if (mode === 'move' && resizeDrag) {
+      const dx0 = resizeDrag.start[0] - resizeDrag.anchor[0];
+      const dy0 = resizeDrag.start[1] - resizeDrag.anchor[1];
+      const sx = Math.abs(dx0) < 0.02 ? 1 : (cur[0] - resizeDrag.anchor[0]) / dx0;
+      const sy = Math.abs(dy0) < 0.02 ? 1 : (cur[1] - resizeDrag.anchor[1]) / dy0;
+      const next = resizeDrag.orig.map(([x, y]) => [
+        Math.min(1, Math.max(0, resizeDrag.anchor[0] + (x - resizeDrag.anchor[0]) * sx)),
+        Math.min(1, Math.max(0, resizeDrag.anchor[1] + (y - resizeDrag.anchor[1]) * sy)),
+      ]);
+      const nxs = next.map((p) => p[0]), nys = next.map((p) => p[1]);
+      if (Math.max(...nxs) - Math.min(...nxs) < 0.02 || Math.max(...nys) - Math.min(...nys) < 0.02) return;
+      seats[resizeDrag.idx].polygon = next;
+      dirty = true; meDraw();
+    }
+    else if (mode === 'move' && moveDrag) {
+      const dx = cur[0] - moveDrag.start[0], dy = cur[1] - moveDrag.start[1];
+      seats[moveDrag.idx].polygon = moveDrag.orig.map(([x, y]) => [Math.min(1, Math.max(0, x + dx)), Math.min(1, Math.max(0, y + dy))]);
+      dirty = true; meDraw();
+    }
+  });
+  svg().addEventListener('pointerup', (e) => {
+    const up = toNorm(e);
+    if (mode === 'rect' && dragRect) {
+      const [x0, y0, x1, y1] = dragRect;
+      dragRect = null;
+      const w = Math.abs(x1 - x0), h = Math.abs(y1 - y0);
+      if (w > 0.02 && h > 0.02 && polyArea([[x0,y0],[x1,y0],[x1,y1],[x0,y1]]) >= 0.005) {
+        points = [[Math.min(x0,x1),Math.min(y0,y1)],[Math.max(x0,x1),Math.min(y0,y1)],[Math.max(x0,x1),Math.max(y0,y1)],[Math.min(x0,x1),Math.max(y0,y1)]];
+        document.getElementById('me-hint').textContent = 'Rectangle ready — press Add.';
+      } else {
+        document.getElementById('me-hint').textContent = 'Rectangle too small — drag a larger zone.';
+      }
+      meDraw();
+    } else if (mode === 'add') {
+      const moved = downAt ? Math.hypot(up[0] - downAt[0], up[1] - downAt[1]) : 1;
+      if (moved < 0.01) { points.push([Math.round(up[0]*10000)/10000, Math.round(up[1]*10000)/10000]); meDraw(); }
+    } else if (moveDrag || resizeDrag) { moveDrag = null; resizeDrag = null; meValidate(); }
+    downAt = null;
+  });
+  document.getElementById('me-list').addEventListener('click', (e) => {
+    const chip = e.target.closest && e.target.closest('[data-row]');
+    if (chip && !e.target.closest('[data-del]') && e.target.tagName !== 'INPUT') { selected = parseInt(chip.getAttribute('data-row'), 10); meDraw(); return; }
+    const btn = e.target.closest && e.target.closest('[data-del]');
+    if (btn) { pushUndo(); seats.splice(parseInt(btn.getAttribute('data-del'), 10), 1); selected = -1; dirty = true; meDraw(); meValidate(); }
+  });
+  document.getElementById('me-list').addEventListener('change', (e) => {
+    const inp = e.target.closest && e.target.closest('[data-f]');
+    if (!inp) return;
+    const i = parseInt(inp.getAttribute('data-i'), 10), f = inp.getAttribute('data-f');
+    pushUndo();
+    if (f === 'seat_id') { const v = inp.value.trim(); if (v && !seats.some((s, k) => k !== i && s.seat_id === v)) seats[i].seat_id = v; }
+    else seats[i][f] = Math.max(1, Math.min(32, parseInt(inp.value || '1', 10) || 1));
+    dirty = true; meDraw(); meValidate();
+  });
+  window.meCommit = () => {
+    const name = document.getElementById('me-name').value.trim() || `seat-${seats.length + 1}`;
+    if (seats.some((s) => s.seat_id === name)) { document.getElementById('me-status').textContent = 'Seat id already used.'; return; }
+    if (points.length < 3) return;
+    pushUndo();
+    seats.push({ seat_id: name, polygon: points, row: 1, col: seats.length + 1 });
+    points = [];
+    document.getElementById('me-name').value = name.replace(/(\d+)$/, (m) => String(parseInt(m, 10) + 1));
+    dirty = true; meDraw(); meValidate();
+  };
+  window.meReload = async () => {
+    if (dirty && !confirm('Discard unsaved editor changes and reload the active layout?')) return;
+    await meLoad();
+  };
+  async function meLoad() {
+    try {
+      const j = await fetch('/api/layouts/current').then((r) => r.json());
+      seats = j.seats || []; version = j.version || '';
+      document.getElementById('me-save-name').value = version && !version.startsWith('auto') && version !== 'none' ? version : 'custom-cabin';
+      document.getElementById('me-active').textContent = `active: ${version || 'none'} (${seats.length} seats)`;
+      selected = -1; points = []; dragRect = null; dirty = false; undoStack = []; redoStack = [];
+      viewBox = { x: 0, y: 0, w: 1000, h: 1000 }; applyViewBox();
+      meDraw(); meValidate(); meRefreshLayouts();
+    } catch (e) {
+      document.getElementById('me-list').innerHTML = `<p class="muted">Editor unavailable: ${esc(e)}</p>`;
+    }
+  }
+  async function meRefreshLayouts() {
+    try {
+      const j = await fetch('/api/service/sources').then((r) => r.json());
+      const sel = document.getElementById('me-layout');
+      const names = j.layouts || [];
+      sel.innerHTML = names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+      if (version && names.includes(version)) sel.value = version;
+    } catch (e) {}
+  }
+  window.meApplyNamed = async () => {
+    const status = document.getElementById('me-status');
+    const name = document.getElementById('me-layout').value;
+    if (!name) return;
+    if (dirty && !confirm('Discard unsaved editor changes and switch layout?')) return;
+    status.textContent = `Applying ${name}…`;
+    try {
+      const r = await fetch('/api/layouts/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }) });
+      const jj = await r.json();
+      if (!r.ok) { status.textContent = `Not applied: ${jj.error}`; return; }
+      const hs = jj.hot_swapped ? ` live session updated (${jj.hot_swapped.carried} kept, ${jj.hot_swapped.reset} new)` : '';
+      status.textContent = `Now active: ${jj.layout} (${jj.seats} seats).${hs}`;
+      await meLoad();
+    } catch (e) { status.textContent = `Not applied: ${e}`; }
+  };
+  window.meSave = async () => {
+    const status = document.getElementById('me-status');
+    const name = document.getElementById('me-save-name').value.trim();
+    if (!name) { status.textContent = 'Name the layout first.'; return; }
+    const post = async (overwrite) => {
+      const r = await fetch('/api/layouts/save', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, seats, overwrite }) });
+      return [r, await r.json()];
+    };
+    status.textContent = 'Saving…';
+    try {
+      let [r, j] = await post(document.getElementById('me-overwrite').checked);
+      if (r.status === 409 && confirm(`Layout "${name}" exists. Replace it with these zones?`)) {
+        [r, j] = await post(true);
+      }
+      if (!r.ok) { status.textContent = `Not saved: ${j.error}`; return; }
+      dirty = false;
+      try { localStorage.setItem('odc-layout', j.layout); } catch (e) {}
+      try {
+        const ar = await fetch('/api/layouts/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }) });
+        const aj = await ar.json();
+        if (ar.ok) {
+          const hs = aj.hot_swapped ? ` live session updated (${aj.hot_swapped.carried} kept, ${aj.hot_swapped.reset} new)` : '';
+          status.textContent = `Saved ${aj.layout} (${aj.seats} seats) — now active.${hs}`;
+          meLoad();
+        } else {
+          status.textContent = `Saved ${name}, but not applied: ${aj.error}`;
+        }
+      } catch (e) { status.textContent = `Saved ${name}, but not applied: ${e}`; }
+    } catch (e) { status.textContent = `Not saved: ${e}`; }
+  };
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selected >= 0 && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName || '')) {
+      pushUndo(); seats.splice(selected, 1); selected = -1; dirty = true; meDraw(); meValidate();
+    }
+  });
+  window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+  meSetMode('move');
+  meLoad();
+})();
+</script>
+{% endblock %}

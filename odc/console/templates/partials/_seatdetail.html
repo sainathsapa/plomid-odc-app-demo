@@ -1,0 +1,40 @@
+{% if row %}
+<h3>{{ selected_name or selected }}</h3>
+<table class="data">
+<tr><th>Seat key</th><td>{{ row.seat_id }}</td></tr>
+<tr><th>Presence</th><td><span class="pill">{{ row.presence }}</span></td></tr>
+<tr><th>Occupant</th><td>{{ row.occupant_category }}{% if row.child_placement != 'n/a' %} ({{ row.child_placement }}){% endif %}</td></tr>
+<tr><th>Age / child status</th><td>{{ row.child }} · {{ row.occupant_category }}{% for prediction in row.age_predictions|default([]) %}<br>{{ prediction.track_id }}: {{ prediction.classification_category|default(prediction.age_category) }} (estimate {{ prediction.age_years }} years; uncalibrated point estimate; {{ prediction.classification_reason|default(prediction.reason) }}){% endfor %}</td></tr>
+<tr><th>Possible child evidence</th><td>{{ 'Yes, unconfirmed' if row.child_candidate and row.child != 'Yes' else 'No' }} <span class="muted">({{ row.child_candidate_reason|default('no candidate evidence') }})</span></td></tr>
+<tr><th>Apparent gender</th><td>{{ row.gender|default('UNKNOWN') }}{% if row.gender_conf is defined and row.gender_conf is not none %} (uncalibrated score {{ '%.2f' % row.gender_conf }}){% endif %}</td></tr>
+<tr><th>Restraint</th><td>{{ 'Unverified candidate' if row.restraint_candidate else row.restraint }} <span class="muted">({{ row.restraint_reason }})</span></td></tr>
+<tr><th>Restraint occupancy</th><td>{{ row.child_seat_occupancy|default('UNKNOWN') }} <span class="muted">({{ row.child_seat_occupancy_reason|default('unavailable') }})</span></td></tr>
+<tr><th>Seat belt strap</th><td>{{ row.belt }} <span class="muted">({{ row.belt_reason }}; fastening not verified)</span></td></tr>
+<tr><th>Posture</th><td>{{ row.posture|default('UNKNOWN') }} <span class="muted">({{ row.posture_reason|default('unavailable') }}{% if row.posture_confidence is defined and row.posture_confidence is not none %}; geometric support {{ '%.2f' % row.posture_confidence }}{% endif %})</span></td></tr>
+<tr><th>Body pose</th><td>{{ row.pose ~ ' / 33 visible keypoints' if row.pose is defined and row.pose is not none else 'not visible' }}</td></tr>
+<tr><th>Confidence</th><td>{{ '%.2f' % row.confidence }}</td></tr>
+<tr><th>Visibility</th><td>{{ row.visibility }}</td></tr>
+<tr><th>Reasons</th><td>{{ row.reason_codes | join(', ') or '—' }}</td></tr>
+<tr><th>Tracks</th><td>{{ row.track_ids | join(', ') or '—' }}</td></tr>
+<tr><th>Updated</th><td>{{ row.updated_at }}</td></tr>
+<tr><th>Frame</th><td>{{ row.frame_seq }}</td></tr>
+</table>
+<p class="muted">Occupancy, child, restraint, belt and posture remain separate. Belt absence is
+Unknown without a validated belt or buckle signal; visible straps are candidate evidence.</p>
+{% elif state %}
+<h3>{{ selected_name or selected }}</h3>
+<table class="data">
+<tr><th>Presence</th><td><span class="pill">{{ state.presence.value }}</span></td></tr>
+<tr><th>Confidence</th><td>{{ '%.2f' % state.confidence }}</td></tr>
+<tr><th>Visibility</th><td>{{ state.visibility.value }}</td></tr>
+<tr><th>Reasons</th><td>{{ state.reason_codes | join(', ') or '—' }}</td></tr>
+<tr><th>Updated</th><td>{{ state.updated_at }}</td></tr>
+<tr><th>Last positive</th><td>{{ state.last_positive_at or '—' }}</td></tr>
+<tr><th>Model set</th><td>{{ state.model_set_version }}</td></tr>
+<tr><th>Config</th><td>{{ state.config_version }}</td></tr>
+</table>
+<p class="muted">Every value traces to a PLOMID row or is labelled transient.</p>
+{% else %}
+<p class="muted">No record for <strong>{{ selected or '—' }}</strong>
+{% if session %}in session {{ session }}{% else %}in the live view{% endif %}.</p>
+{% endif %}

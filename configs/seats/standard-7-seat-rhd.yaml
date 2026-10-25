@@ -1,0 +1,13 @@
+camera_profile: standard-cabin-rhd
+version: standard-7-seat-rhd-v1
+layout_type: standard-7-seat
+orientation: RHD
+display_name: Standard seven-seat cabin (RHD)
+seats:
+  - {seat_id: seat_1, label: Seat 1, display_number: 1, physical_role: driver, row: 1, col: 1, polygon: [[0.12, 0.05], [0.48, 0.05], [0.48, 0.28], [0.12, 0.28]], camera_profile: standard-cabin-rhd, version: standard-7-seat-rhd-v1}
+  - {seat_id: seat_2, label: Seat 2, display_number: 2, physical_role: front_passenger, row: 1, col: 2, polygon: [[0.52, 0.05], [0.88, 0.05], [0.88, 0.28], [0.52, 0.28]], camera_profile: standard-cabin-rhd, version: standard-7-seat-rhd-v1}
+  - {seat_id: seat_3, label: Seat 3, display_number: 3, physical_role: second_row_left, row: 2, col: 1, polygon: [[0.08, 0.36], [0.34, 0.36], [0.34, 0.60], [0.08, 0.60]], camera_profile: standard-cabin-rhd, version: standard-7-seat-rhd-v1}
+  - {seat_id: seat_4, label: Seat 4, display_number: 4, physical_role: second_row_center, row: 2, col: 2, polygon: [[0.37, 0.36], [0.63, 0.36], [0.63, 0.60], [0.37, 0.60]], camera_profile: standard-cabin-rhd, version: standard-7-seat-rhd-v1}
+  - {seat_id: seat_5, label: Seat 5, display_number: 5, physical_role: second_row_right, row: 2, col: 3, polygon: [[0.66, 0.36], [0.92, 0.36], [0.92, 0.60], [0.66, 0.60]], camera_profile: standard-cabin-rhd, version: standard-7-seat-rhd-v1}
+  - {seat_id: seat_6, label: Seat 6, display_number: 6, physical_role: third_row_left, row: 3, col: 1, polygon: [[0.22, 0.68], [0.48, 0.68], [0.48, 0.94], [0.22, 0.94]], camera_profile: standard-cabin-rhd, version: standard-7-seat-rhd-v1}
+  - {seat_id: seat_7, label: Seat 7, display_number: 7, physical_role: third_row_right, row: 3, col: 2, polygon: [[0.52, 0.68], [0.78, 0.68], [0.78, 0.94], [0.52, 0.94]], camera_profile: standard-cabin-rhd, version: standard-7-seat-rhd-v1}

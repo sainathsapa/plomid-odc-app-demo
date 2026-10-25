@@ -1,0 +1,10 @@
+# Keep the manifest, ignore the media.
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.jpg
+*.png
+!README.md
+!.gitignore

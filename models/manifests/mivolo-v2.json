@@ -1,0 +1,27 @@
+{
+  "model_id": "mivolo-v2",
+  "family": "MiVOLO V2 age and gender estimator",
+  "hf_repo": "iitolstykh/mivolo_v2",
+  "hf_revision": "53393526c220e34cdd7b722b36d22b6f9e5f4241",
+  "files": [
+    "config.json",
+    "configuration_mivolo.py",
+    "model.safetensors",
+    "modeling_mivolo.py",
+    "preprocessor_config.json"
+  ],
+  "upstream_code_repo": "https://github.com/WildChlamydia/MiVOLO",
+  "code_revision": "37475e3f8818b5f22448003feec3e64b01bfb188",
+  "code_license": "Apache-2.0",
+  "weights_license": "Apache-2.0 per Hugging Face model card",
+  "training_data_lineage": "Model card states proprietary and open-source datasets; exact dataset mix is not fully enumerated.",
+  "input_profile": "paired 384x384 face/person RGB tensors; normalized with ImageNet mean/std; missing face uses normalized zero input",
+  "runtime_profile": "local Transformers model; loaded once by odc.age.MiVOLOV2AgeEstimator; CPU/CUDA/MPS selection",
+  "score_semantics": {
+    "age_output": "regressed apparent-age point estimate, not a class probability",
+    "gender_probs": "binary softmax score, not calibrated"
+  },
+  "sha256": {
+    "model.safetensors": "96efb47051c038ebeec74b73b4253c5fd000433e5afcab7deee0bd8f3fa7bf18"
+  }
+}

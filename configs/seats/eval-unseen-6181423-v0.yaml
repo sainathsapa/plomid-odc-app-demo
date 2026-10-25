@@ -1,0 +1,14 @@
+# Evaluation-only calibration for the independent Pexels 6181423 clip.
+# This is a separate camera viewpoint from the development clips; it is not
+# used by the default application profile or for threshold tuning.
+camera_profile: unseen-pexels-6181423
+version: eval-unseen-6181423-v0
+seats:
+  - seat_id: adult-left
+    polygon: [[0.00, 0.00], [0.48, 0.00], [0.48, 1.00], [0.00, 1.00]]
+    camera_profile: unseen-pexels-6181423
+    version: eval-unseen-6181423-v0
+  - seat_id: infant-seat-right
+    polygon: [[0.52, 0.00], [1.00, 0.00], [1.00, 1.00], [0.52, 1.00]]
+    camera_profile: unseen-pexels-6181423
+    version: eval-unseen-6181423-v0

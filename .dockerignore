@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+footage/*.mp4
+footage/*.jpg
+models/*/
+!models/manifests/
+models/*.pth
+models/*.pt
+models/*.bin
+models/*.safetensors
+models/*.onnx
+models/*.task
+reports/
+.git/
+eval/frames/
+.phase0-data/

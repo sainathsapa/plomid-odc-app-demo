@@ -1,0 +1,18 @@
+# Demo seat layout for footage/C2_child_seat.mp4 — version demo-c2-v1.
+# Redrawn 2026-10-23 after production replay: the child occupies the
+# foreground center-left; an adult leans in from outside at upper-left.
+# The previous broad child polygon included the adult's face and caused the
+# adult specialist candidate to override the child's result. Keep the child
+# seat ROI around the actual child; the upper-right region remains separate.
+# Coordinates normalized 0..1, x→right, y→down, 1920x1080.
+camera_profile: child-closeup-c2
+version: demo-c2-v2
+seats:
+  - seat_id: child-seat
+    polygon: [[0.27, 0.15], [0.64, 0.15], [0.64, 1.0], [0.27, 1.0]]
+    camera_profile: child-closeup-c2
+    version: demo-c2-v2
+  - seat_id: adult-right
+    polygon: [[0.68, 0.0], [0.90, 0.0], [0.90, 0.62], [0.68, 0.62]]
+    camera_profile: child-closeup-c2
+    version: demo-c2-v2

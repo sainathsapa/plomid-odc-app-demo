@@ -1,0 +1,36 @@
+{
+  "model_id": "rtdetrv2-s-coco",
+  "family": "rt-detr-v2",
+  "hf_repo": "PekingU/rtdetr_v2_r18vd",
+  "hf_revision": "5650961749fa93567c0d46fc7f43ea4f9e914107",
+  "files": [
+    "config.json",
+    "model.safetensors",
+    "preprocessor_config.json"
+  ],
+  "code_repo": "https://github.com/lyuwenyu/RT-DETR",
+  "code_license": "Apache-2.0",
+  "weights_license": "Apache-2.0",
+  "dataset_terms": "COCO train2017 (no Objects365 lineage in this checkpoint)",
+  "approved_for_commercial_use": true,
+  "approval_evidence": "HF cardData license=apache-2.0, tags dataset:coco; upstream LICENSE Apache-2.0; verified 2026-10-13",
+  "input_profile": "RGB 640 (see preprocessor_config.json at fetch time)",
+  "runtime_profile": "onnxruntime (GPU-first preference, CPU fallback)",
+  "providers_preference": [
+    "CUDAExecutionProvider",
+    "CoreMLExecutionProvider",
+    "CPUExecutionProvider"
+  ],
+  "providers_blocked": {
+    "CoreMLExecutionProvider": "2026-10-13: all-300-query zeroed logits (sigmoid=0.5) on F1 frames; 529/590 nodes assigned yet numerically wrong; never tried"
+  },
+  "parity": {
+    "reference": "transformers RTDetrV2ForObjectDetection on torch MPS",
+    "preprocessing": "PIL-BILINEAR RGB 640x640 /255 (cv2.INTER_LINEAR diverges)",
+    "result": "max|dlogit|<=2.4e-04 max|dbox|<=3.0e-05 over 3 F1 frames",
+    "gate": "max|dbox| < 1e-3"
+  },
+  "sha256": {
+    "model.safetensors": "d18309d0d7ea57048138885c4c6ecfcb1e24506fc6153b94ad484f8ab62c7115"
+  }
+}

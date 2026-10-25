@@ -1,0 +1,22 @@
+# Demo seat layout for footage/R1_rear_wide.mp4 — version demo-r1-v1.
+# Redrawn after current Service output showed driver/front overlap with rear-center.
+# Replaced by calibration wizard (Phase 8). Normalized 0..1, 1920x1080.
+camera_profile: van-rear-r1
+version: demo-r1-v1
+seats:
+  - seat_id: driver-front
+    polygon: [[0.33, 0.18], [0.50, 0.18], [0.50, 0.84], [0.33, 0.84]]
+    camera_profile: van-rear-r1
+    version: demo-r1-v1
+  - seat_id: rear-left
+    polygon: [[0.0, 0.45], [0.33, 0.45], [0.33, 1.0], [0.0, 1.0]]
+    camera_profile: van-rear-r1
+    version: demo-r1-v1
+  - seat_id: rear-center
+    polygon: [[0.50, 0.38], [0.77, 0.38], [0.77, 1.0], [0.50, 1.0]]
+    camera_profile: van-rear-r1
+    version: demo-r1-v1
+  - seat_id: rear-right
+    polygon: [[0.77, 0.40], [1.0, 0.40], [1.0, 1.0], [0.77, 1.0]]
+    camera_profile: van-rear-r1
+    version: demo-r1-v1

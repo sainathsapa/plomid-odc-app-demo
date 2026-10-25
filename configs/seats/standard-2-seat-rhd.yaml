@@ -1,0 +1,8 @@
+camera_profile: standard-cabin-rhd
+version: standard-2-seat-rhd-v1
+layout_type: standard-2-seat
+orientation: RHD
+display_name: Standard two-seat cabin (RHD)
+seats:
+  - {seat_id: seat_1, label: Seat 1, display_number: 1, physical_role: driver, row: 1, col: 1, polygon: [[0.12, 0.12], [0.48, 0.12], [0.48, 0.88], [0.12, 0.88]], camera_profile: standard-cabin-rhd, version: standard-2-seat-rhd-v1}
+  - {seat_id: seat_2, label: Seat 2, display_number: 2, physical_role: front_passenger, row: 1, col: 2, polygon: [[0.52, 0.12], [0.88, 0.12], [0.88, 0.88], [0.52, 0.88]], camera_profile: standard-cabin-rhd, version: standard-2-seat-rhd-v1}

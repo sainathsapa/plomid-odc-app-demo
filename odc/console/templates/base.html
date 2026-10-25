@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PLOMID ODC — {{ badge }}</title>
+<link rel="stylesheet" href="/static/style.css?v=5">
+<link rel="icon" href="/static/brand/plomid-emblem-copper.svg" type="image/svg+xml">
+<script>
+try {
+  var mode = localStorage.getItem('odc-theme-mode') || localStorage.getItem('odc-theme') || 'system';
+  var t = mode === 'system' ? ((window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark') : mode;
+  document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.setAttribute('data-theme-mode', mode);
+  var nv = localStorage.getItem('odc-nav');
+  if (nv === 'rail') document.documentElement.classList.add('nav-pre-rail');
+  else if (nv === 'hidden') { try { localStorage.setItem('odc-nav', 'rail'); } catch (e) {} document.documentElement.classList.add('nav-pre-rail'); }
+} catch (e) {}
+</script>
+<script src="/static/vendor/htmx.min.js" defer></script>
+<script src="/static/vendor/alpine.min.js" defer></script>
+<script src="/static/tour.js?v=3" defer></script>
+{% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+{% set _path = request.url.path %}
+{% set _active = 'live' if _path in ('/', '/live') else _path.strip('/').split('/')[0] %}
+<header class="topbar" title="PLOMID occupant console — every number traces to a database row or the live hub">
+  <button class="ghost icon-btn" id="nav-toggle" title="Collapse sidebar to icons" aria-label="Collapse sidebar to icons" aria-expanded="true" aria-controls="console-nav">☰</button>
+  <span class="brand" title="PLOMID ODC — cabin occupancy console (prototype, not safety-certified)">
+    <img src="/static/brand/plomid-lockup-copper.svg" alt="PLOMID" height="24">
+    <span class="tag">ODC · occupant console</span>
+  </span>
+  <span id="statusbar-mount" hx-get="/partials/status{% if session %}?session={{ session }}{% endif %}"
+        hx-trigger="every 2s" hx-swap="outerHTML" title="Service status: live state, processed / dropped frames and database health">
+    {% include "partials/_statusbar.html" %}
+  </span>
+  {% block topbar_action %}{% endblock %}
+  <span style="flex:1"></span>
+  <button class="ghost" id="theme-toggle" title="Switch light / dark instrument theme (saved on this device)">Theme: Dark</button>
+  <button class="ghost" id="tour-start" title="Walk through every screen in 60 seconds">Guided tour</button>
+</header>
+<div class="layout {{ 'has-inspector' if _active == 'live' else 'wide-workspace' }}">
+  <nav class="side" id="console-nav" aria-label="Console" title="Console sections — Live is operations, the rest is inspect and configure">
+    <div class="nav-group"><span class="nav-group-title">Operate</span>
+    <a href="/live{% if session %}?session={{ session }}{% endif %}" class="{{ 'active' if _active == 'live' }}" {% if _active == 'live' %}aria-current="page"{% endif %} title="Live / Replay — operations screen: stream, seats, alerts, evidence"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M6.5 5.5 L11 8 L6.5 10.5 Z" fill="currentColor" stroke="none"/></svg><span class="lbl">Live / Replay</span></a>
+    <a href="/seats{% if session %}?session={{ session }}{% endif %}" class="{{ 'active' if _active == 'seats' }}" {% if _active == 'seats' %}aria-current="page"{% endif %} title="Seat map — cabin schematic, true zones, attributes and the calibration editor"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg><span class="lbl">Seat map</span></a>
+    <a href="/timeline{% if session %}?session={{ session }}{% endif %}" class="{{ 'active' if _active == 'timeline' }}" {% if _active == 'timeline' %}aria-current="page"{% endif %} title="Timeline — every seat and alert event on one time base"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5 V8 L10.5 9.5"/></svg><span class="lbl">Timeline</span></a>
+    <a href="/diagnostics" class="{{ 'active' if _active == 'diagnostics' }}" {% if _active == 'diagnostics' %}aria-current="page"{% endif %} title="Diagnostics — throughput, latency, model and camera health"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8.5 H5 L7 4 L9 12 L11 7.5 H14"/></svg><span class="lbl">Diagnostics</span></a>
+    </div>
+    <div class="nav-group"><span class="nav-group-title">Quality &amp; setup</span>
+    <a href="/validation" class="{{ 'active' if _active == 'validation' }}" {% if _active == 'validation' %}aria-current="page"{% endif %} title="Validation — recorded evaluation runs and holdout discipline"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M5.5 8 L7.5 10 L10.8 6"/></svg><span class="lbl">Validation</span></a>
+    <a href="/config" class="{{ 'active' if _active == 'config' }}" {% if _active == 'config' %}aria-current="page"{% endif %} title="Config — active geometry, thresholds, model manifest and versions"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8 V3.4 M8 12.6 V14.2 M1.8 8 H3.4 M12.6 8 H14.2 M3.6 3.6 L4.7 4.7 M11.3 11.3 L12.4 12.4 M12.4 3.6 L11.3 4.7 M4.7 11.3 L3.6 12.4"/></svg><span class="lbl">Config</span></a>
+    <a href="/fleet" class="{{ 'active' if _active == 'fleet' }}" {% if _active == 'fleet' %}aria-current="page"{% endif %} title="Fleet — vehicles and cameras (if configured)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2 L14 5.5 L8 9 L2 5.5 Z"/><path d="M2 8.5 L8 12 L14 8.5 M2 11.5 L8 15 L14 11.5"/></svg><span class="lbl">Fleet</span></a>
+    </div>
+  </nav>
+<main id="main-content" tabindex="-1">{% block main %}{% endblock %}</main>
+  {% if _active == 'live' %}<aside class="inspector" aria-label="Seat inspector">
+    <div class="inspector-head"><p class="eyebrow">Selected seat</p><button type="button" class="ghost seat-detail-close" data-seat-detail-close aria-label="Close selected seat details" title="Close selected seat details">×</button></div>
+    <div id="inspector"><div class="inspector-empty"><strong>Select a seat</strong><p class="muted">Inspect occupancy, visibility and the evidence behind its current classification.</p></div></div>
+    {% block inspector_extra %}{% endblock %}
+  </aside>{% endif %}
+</div>
+<footer class="footer">
+<span>© <span id="yr">2026</span> PLOMID Technologies India · All rights reserved</span>
+<span class="muted">ODC engineering evaluation · not safety-certified</span>
+</footer>
+<div id="tour-root"></div>
+<script>
+(function () {
+  try { document.getElementById('yr').textContent = String(new Date().getFullYear()); } catch (e) {}
+  function label() {
+    var mode = document.documentElement.getAttribute('data-theme-mode') || 'system';
+    var b = document.getElementById('theme-toggle');
+    if (b) b.textContent = 'Theme: ' + mode.charAt(0).toUpperCase() + mode.slice(1);
+  }
+  function applySystemTheme() {
+    if ((document.documentElement.getAttribute('data-theme-mode') || 'system') !== 'system') return;
+    var light = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+    var resolved = light ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', resolved);
+    window.dispatchEvent(new CustomEvent('odc-theme-change', {detail: {theme: resolved}}));
+  }
+  // Sidebar: expanded <-> icon rail, one predictable toggle (persisted).
+  // Rail keeps every destination one click away; nothing ever hides nav.
+  function isRail() {
+    return document.body.classList.contains('nav-rail');
+  }
+  function syncNavButton() {
+    var b = document.getElementById('nav-toggle');
+    if (!b) return;
+    var rail = isRail();
+    b.title = rail ? 'Expand sidebar to labels' : 'Collapse sidebar to icons';
+    b.setAttribute('aria-label', b.title);
+    b.setAttribute('aria-expanded', rail ? 'false' : 'true');
+  }
+  function applyNav(mode) {
+    document.body.classList.remove('nav-rail', 'nav-hidden');
+    document.documentElement.classList.remove('nav-pre-rail', 'nav-pre-hidden');
+    if (mode === 'rail') document.body.classList.add('nav-rail');
+    try { localStorage.setItem('odc-nav', mode === 'rail' ? 'rail' : 'full'); } catch (err) {}
+    syncNavButton();
+  }
+  try {
+    var saved = localStorage.getItem('odc-nav') || '';
+    if (saved === 'rail' || saved === 'hidden') applyNav('rail');
+    else syncNavButton();
+  } catch (e) { syncNavButton(); }
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'theme-toggle') {
+      var current = document.documentElement.getAttribute('data-theme-mode') || 'system';
+      var next = current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system';
+      var resolved = next === 'system'
+        ? ((window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark')
+        : next;
+      document.documentElement.setAttribute('data-theme-mode', next);
+      document.documentElement.setAttribute('data-theme', resolved);
+      try { localStorage.setItem('odc-theme-mode', next); } catch (err) {}
+      window.dispatchEvent(new CustomEvent('odc-theme-change', {detail: {theme: resolved}}));
+      label();
+    }
+    if (e.target && (e.target.id === 'nav-toggle' || e.target.closest('#nav-toggle'))) {
+      applyNav(isRail() ? 'full' : 'rail');
+    }
+    if (e.target && e.target.id === 'tour-start') {
+      if (window.odcTour) window.odcTour.start();
+    }
+  });
+  if (window.matchMedia) {
+    var systemMedia = window.matchMedia('(prefers-color-scheme: light)');
+    if (systemMedia.addEventListener) systemMedia.addEventListener('change', applySystemTheme);
+    else if (systemMedia.addListener) systemMedia.addListener(applySystemTheme);
+  }
+  label();
+})();
+document.body.addEventListener('seat-pick', (e) => {
+  const seat = encodeURIComponent(e.detail.seat);
+  htmx.ajax('GET', `/partials/seat-detail?seat=${seat}{% if session %}&session={{ session }}{% endif %}`, '#inspector');
+});
+document.body.addEventListener('click', (e) => {
+  if (!e.target.closest('[data-seat-detail-close]')) return;
+  const inspector = document.getElementById('inspector');
+  if (inspector) inspector.innerHTML = '<div class="inspector-empty"><strong>Select a seat</strong><p class="muted">Inspect occupancy, visibility and the evidence behind its current classification.</p></div>';
+  document.querySelectorAll('.seat.selected, .seat-overlay.selected, .seat-state-item.selected').forEach((item) => item.classList.remove('selected'));
+  document.body.dispatchEvent(new CustomEvent('seat-inspector-close'));
+});
+</script>
+</body>
+</html>

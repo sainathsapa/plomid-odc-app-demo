@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block main %}
+<div class="page-head">
+<div><p class="eyebrow">Setup · Configuration</p><h1>Configuration</h1><p class="sub">Review the active runtime and switch to a saved cabin layout. Detector and model values are reported from the running configuration.</p></div>
+<div class="actions"><a class="btn" href="/seats">Edit seat geometry</a></div>
+</div>
+<div class="config-workspace">
+<section class="card config-primary">
+<div class="card-head"><div><p class="eyebrow">Active runtime</p><h2>Cabin layout</h2></div><span class="spacer"></span><span class="pill">{{ layout.version }}</span></div>
+<p class="muted">Choose a saved layout for this camera view. Applying changes the active seat geometry immediately; occupant classification and detector thresholds remain unchanged.</p>
+<div class="config-layout-controls">
+<label for="config-layout">Saved layout</label><select id="config-layout" aria-label="Saved cabin layouts"><option value="">Loading saved layouts…</option></select><button type="button" id="config-apply">Apply layout</button>
+</div>
+<p id="config-layout-status" class="muted" role="status" aria-live="polite"></p>
+<dl class="config-seat-list"><div><dt>Camera profile</dt><dd>{{ layout.camera_profile }}</dd></div><div><dt>Layout type</dt><dd>{{ layout.layout_type }}</dd></div><div><dt>Orientation</dt><dd>{{ layout.orientation }}</dd></div><div><dt>Seat zones</dt><dd>{{ layout.seats|length }}</dd></div><div class="config-seats"><dt>Seat identities</dt><dd>{% for s in layout.seats %}{{ s.label or s.seat_id }}{% if not loop.last %} · {% endif %}{% else %}No seats configured{% endfor %}</dd></div></dl>
+</section>
+<section class="card">
+<div class="card-head"><div><p class="eyebrow">Read-only runtime values</p><h2>Detection configuration</h2></div></div>
+<dl class="config-values"><div><dt>State rules</dt><dd>{{ cfg.state.version }}</dd></div><div><dt>Model set</dt><dd>{{ cfg.model_set_version }}</dd></div><div><dt>Detector</dt><dd>{{ cfg.detection.model_id }}</dd></div><div><dt>Detection threshold</dt><dd>{{ cfg.detection.threshold }}</dd></div></dl>
+<p class="muted">These values are loaded by the service at startup. This console does not expose a supported write interface for changing them.</p>
+</section>
+<section class="card">
+<div class="card-head"><div><p class="eyebrow">Provenance</p><h2>Model manifest</h2></div></div>
+{% if manifest %}<dl class="config-values"><div><dt>Model ID</dt><dd>{{ manifest.model_id }}</dd></div><div><dt>Checkpoint SHA-256</dt><dd><code>{{ manifest.checkpoint_sha256[:16] }}…</code></dd></div><div><dt>License</dt><dd>{{ manifest.weights_license }}</dd></div><div><dt>Commercial approval</dt><dd>{{ manifest.approved_for_commercial_use }}</dd></div></dl>
+{% else %}<div class="empty">No model manifest is recorded in PLOMID for {{ cfg.detection.model_id }}.</div>{% endif %}
+</section>
+<section class="card">
+<div class="card-head"><div><p class="eyebrow">History</p><h2>Configuration versions</h2></div></div>
+{% if versions %}<p>{{ versions | join(', ') }}</p>{% else %}<div class="empty">No configuration versions are recorded in events.</div>{% endif %}
+</section>
+</div>
+<style>
+.config-workspace { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.config-workspace > .card { margin:0; min-width:0; }
+.config-primary { grid-column:1/-1; }
+.config-layout-controls { display:grid; grid-template-columns:auto minmax(180px,1fr) auto; align-items:center; gap:10px; margin:18px 0; }
+.config-layout-controls label,.config-values dt,.config-seat-list dt { color:var(--t-d3); font:10px var(--mono); letter-spacing:.07em; text-transform:uppercase; }
+.config-layout-controls select { min-width:0; }
+.config-seat-list,.config-values { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px 20px; margin:18px 0 0; }
+.config-seat-list > div,.config-values > div { min-width:0; }
+.config-seat-list dd,.config-values dd { margin:4px 0 0; overflow-wrap:anywhere; }
+.config-seat-list .config-seats { grid-column:1/-1; }
+@media(max-width:700px) { .config-workspace { grid-template-columns:1fr; } .config-primary { grid-column:auto; } .config-layout-controls { grid-template-columns:1fr; } }
+</style>
+<script>
+(function () {
+  const select = document.getElementById('config-layout');
+  const status = document.getElementById('config-layout-status');
+  const apply = document.getElementById('config-apply');
+  const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  async function loadLayouts() {
+    try {
+      const [sourceResponse, currentResponse] = await Promise.all([fetch('/api/service/sources'), fetch('/api/layouts/current')]);
+      if (!sourceResponse.ok || !currentResponse.ok) throw new Error('Saved layouts are unavailable.');
+      const sourceData = await sourceResponse.json();
+      const current = await currentResponse.json();
+      const names = sourceData.layouts || [];
+      select.innerHTML = names.length ? names.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('') : '<option value="">No saved layouts available</option>';
+      if (names.includes(current.version)) select.value = current.version;
+      status.textContent = names.length ? `Active layout: ${current.version || 'unknown'}. ${names.length} saved layout${names.length === 1 ? '' : 's'} available.` : 'No saved layouts are available.';
+    } catch (error) { select.innerHTML = '<option value="">Layouts unavailable</option>'; status.textContent = String(error); apply.disabled = true; }
+  }
+  apply.addEventListener('click', async () => {
+    if (!select.value) return;
+    apply.disabled = true;
+    status.textContent = `Applying ${select.value}…`;
+    try {
+      const response = await fetch('/api/layouts/apply', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:select.value})});
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Layout could not be applied.');
+      status.textContent = `Active layout: ${result.layout} · ${result.seats} seats${result.running ? ' · running session updated' : ''}.`;
+      window.location.reload();
+    } catch (error) { status.textContent = `Could not apply layout: ${error}`; }
+    finally { apply.disabled = false; }
+  });
+  loadLayouts();
+})();
+</script>
+{% endblock %}

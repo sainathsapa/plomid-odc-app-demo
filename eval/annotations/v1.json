@@ -1,0 +1,37 @@
+{
+  "_note": "Eval-only hand labels v1, authored 2026-10-13 from viewed frames. Box precision ~0.05; match at IoU 0.5. Seat presence is per-zone occupied/empty. NEVER training labels.",
+  "version": "v1",
+  "iou_threshold": 0.5,
+  "splits": {
+    "dev": ["F1", "R1", "C2", "E1"],
+    "holdout": ["N1", "S2"]
+  },
+  "layouts": {
+    "F1": "demo-f1-v0", "R1": "demo-r1-v0", "N1": "demo-n1-v0",
+    "S2": "demo-s2-v0", "E1": "demo-e1-v0", "C2": null
+  },
+  "frames": [
+    {"clip": "F1", "idx": 30, "persons": [[0.0, 0.0, 0.35, 1.0], [0.28, 0.0, 0.6, 0.95], [0.62, 0.28, 1.0, 1.0]], "seats": {"near-adult-left": "occupied", "mid-adult-center": "occupied", "child-seat-right": "occupied"}},
+    {"clip": "F1", "idx": 90, "persons": [[0.0, 0.0, 0.35, 1.0], [0.28, 0.0, 0.6, 0.95], [0.62, 0.28, 1.0, 1.0]], "seats": {"near-adult-left": "occupied", "mid-adult-center": "occupied", "child-seat-right": "occupied"}},
+    {"clip": "F1", "idx": 150, "persons": [[0.0, 0.0, 0.35, 1.0], [0.28, 0.0, 0.6, 0.95], [0.62, 0.28, 1.0, 1.0]], "seats": {"near-adult-left": "occupied", "mid-adult-center": "occupied", "child-seat-right": "occupied"}},
+    {"clip": "F1", "idx": 210, "persons": [[0.0, 0.0, 0.35, 1.0], [0.28, 0.0, 0.6, 0.95], [0.62, 0.28, 1.0, 1.0]], "seats": {"near-adult-left": "occupied", "mid-adult-center": "occupied", "child-seat-right": "occupied"}},
+    {"clip": "F1", "idx": 270, "persons": [[0.0, 0.0, 0.35, 1.0], [0.28, 0.0, 0.6, 0.95], [0.62, 0.28, 1.0, 1.0]], "seats": {"near-adult-left": "occupied", "mid-adult-center": "occupied", "child-seat-right": "occupied"}},
+    {"clip": "R1", "idx": 20, "persons": [[0.36, 0.27, 0.52, 0.72], [0.17, 0.35, 0.3, 0.75], [0.05, 0.55, 0.2, 0.85], [0.52, 0.35, 0.65, 0.72], [0.62, 0.45, 0.8, 1.0], [0.7, 0.65, 1.0, 1.0]], "seats": {"driver-front": "occupied", "rear-left": "occupied", "rear-center": "occupied", "rear-right": "occupied"}},
+    {"clip": "R1", "idx": 50, "persons": [[0.36, 0.27, 0.52, 0.72], [0.17, 0.35, 0.3, 0.75], [0.05, 0.55, 0.2, 0.85], [0.52, 0.35, 0.65, 0.72], [0.62, 0.45, 0.8, 1.0], [0.7, 0.65, 1.0, 1.0]], "seats": {"driver-front": "occupied", "rear-left": "occupied", "rear-center": "occupied", "rear-right": "occupied"}},
+    {"clip": "R1", "idx": 80, "persons": [[0.36, 0.27, 0.52, 0.72], [0.17, 0.35, 0.3, 0.75], [0.05, 0.55, 0.2, 0.85], [0.52, 0.35, 0.65, 0.72], [0.62, 0.45, 0.8, 1.0], [0.7, 0.65, 1.0, 1.0]], "seats": {"driver-front": "occupied", "rear-left": "occupied", "rear-center": "occupied", "rear-right": "occupied"}},
+    {"clip": "R1", "idx": 110, "persons": [[0.36, 0.27, 0.52, 0.72], [0.17, 0.35, 0.3, 0.75], [0.05, 0.55, 0.2, 0.85], [0.52, 0.35, 0.65, 0.72], [0.62, 0.45, 0.8, 1.0], [0.7, 0.65, 1.0, 1.0]], "seats": {"driver-front": "occupied", "rear-left": "occupied", "rear-center": "occupied", "rear-right": "occupied"}},
+    {"clip": "R1", "idx": 140, "persons": [[0.36, 0.27, 0.52, 0.72], [0.17, 0.35, 0.3, 0.75], [0.05, 0.55, 0.2, 0.85], [0.52, 0.35, 0.65, 0.72], [0.62, 0.45, 0.8, 1.0], [0.7, 0.65, 1.0, 1.0]], "seats": {"driver-front": "occupied", "rear-left": "occupied", "rear-center": "occupied", "rear-right": "occupied"}},
+    {"clip": "C2", "idx": 30, "persons": [[0.2, 0.22, 0.62, 1.0], [0.0, 0.08, 0.22, 0.5], [0.55, 0.0, 0.75, 0.35]], "seats": {}},
+    {"clip": "C2", "idx": 100, "persons": [[0.2, 0.22, 0.62, 1.0], [0.0, 0.08, 0.22, 0.5], [0.55, 0.0, 0.75, 0.35]], "seats": {}},
+    {"clip": "C2", "idx": 170, "persons": [[0.2, 0.22, 0.62, 1.0], [0.0, 0.08, 0.22, 0.5], [0.55, 0.0, 0.75, 0.35]], "seats": {}},
+    {"clip": "E1", "idx": 50, "persons": [], "seats": {"driver": "empty"}},
+    {"clip": "E1", "idx": 150, "persons": [], "seats": {"driver": "empty"}},
+    {"clip": "E1", "idx": 250, "persons": [], "seats": {"driver": "empty"}},
+    {"clip": "N1", "idx": 100, "persons": [[0.0, 0.05, 0.35, 1.0]], "seats": {"driver": "occupied"}},
+    {"clip": "N1", "idx": 400, "persons": [[0.0, 0.05, 0.35, 1.0]], "seats": {"driver": "occupied"}},
+    {"clip": "N1", "idx": 800, "persons": [[0.0, 0.05, 0.35, 1.0]], "seats": {"driver": "occupied"}},
+    {"clip": "S2", "idx": 100, "persons": [[0.35, 0.1, 1.0, 1.0]], "seats": {"driver": "occupied"}},
+    {"clip": "S2", "idx": 300, "persons": [[0.35, 0.1, 1.0, 1.0]], "seats": {"driver": "occupied"}},
+    {"clip": "S2", "idx": 500, "persons": [[0.35, 0.1, 1.0, 1.0]], "seats": {"driver": "occupied"}}
+  ]
+}

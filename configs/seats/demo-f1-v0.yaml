@@ -1,0 +1,21 @@
+# Demo seat layout for footage/F1_family_ride.mp4 — version demo-f1-v1.
+# Camera-specific zones redrawn after the 2026-10-23 production replay showed
+# the infant's broad person box centered in the overlapping adult zone.
+# Boundaries are now disjoint; this remains approximate and should be
+# calibrated for any other camera installation.
+# Coordinates normalized 0..1, x→right, y→down, 1920x1080.
+camera_profile: minivan-closeup-f1
+version: demo-f1-v1
+seats:
+  - seat_id: near-adult-left
+    polygon: [[0.0, 0.0], [0.3, 0.0], [0.3, 1.0], [0.0, 1.0]]
+    camera_profile: minivan-closeup-f1
+    version: demo-f1-v1
+  - seat_id: mid-adult-center
+    polygon: [[0.3, 0.0], [0.5, 0.0], [0.5, 1.0], [0.3, 1.0]]
+    camera_profile: minivan-closeup-f1
+    version: demo-f1-v1
+  - seat_id: child-seat-right
+    polygon: [[0.5, 0.25], [1.0, 0.25], [1.0, 1.0], [0.5, 1.0]]
+    camera_profile: minivan-closeup-f1
+    version: demo-f1-v1

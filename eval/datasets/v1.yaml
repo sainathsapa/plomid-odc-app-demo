@@ -1,0 +1,19 @@
+# ODC validation dataset v1 (locked 2026-10-13).
+# Dev tunes thresholds; holdout (N1 night, S2 belt) verifies ONCE and is
+# never used for tuning. Box precision ~0.05, match at IoU 0.5.
+annotations: eval/annotations/v1.json
+eval_threshold: 0.3
+clips:
+  F1: footage/F1_family_ride.mp4
+  R1: footage/R1_rear_wide.mp4
+  C2: footage/C2_child_seat.mp4
+  E1: footage/E1_empty_cabin.mp4
+  N1: footage/N1_night_drive.mp4
+  S2: footage/S2_belt_up.mp4
+acceptance:
+  person_precision_dev: 0.15
+  person_recall_dev: 0.35
+  seat_correct_dev: 0.75
+  seat_unknown_rate_max: 0.3
+  holdout_recall_min: 0.25
+holdout_policy: "thresholds frozen on dev; holdout runs once per model/config change; failures gate release, never tune"

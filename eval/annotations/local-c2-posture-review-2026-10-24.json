@@ -1,0 +1,25 @@
+{
+  "video": "footage/C2_child_seat.mp4",
+  "review_date": "2026-10-24",
+  "review_method": "Manual frame review from source video, completed without consulting model predictions. One reviewer; posture label is gross seated torso posture only, not a medical or restraint-fit assessment.",
+  "frame_annotations": {
+    "1": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "13": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "25": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "37": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "49": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "61": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "73": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "85": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "97": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "109": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "121": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "133": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "145": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "157": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "169": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "181": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "193": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}},
+    "205": {"child-seat": {"occupant": "child", "restraint": "present", "posture": "UPRIGHT"}}
+  }
+}

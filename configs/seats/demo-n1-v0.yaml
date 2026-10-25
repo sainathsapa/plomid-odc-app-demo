@@ -1,0 +1,12 @@
+# Single-zone layout for footage/N1_night_drive.mp4 — demo-n1-v1.
+# Updated from sampled production detections: person boxes center around x=.50,
+# so the old x<=.38 boundary excluded the tracked occupant entirely.
+# Camera-specific approximate region; recalibrate for another installation.
+# Normalized 0..1, 1920x1080.
+camera_profile: night-driver-n1
+version: demo-n1-v1
+seats:
+  - seat_id: driver
+    polygon: [[0.30, 0.05], [0.68, 0.05], [0.68, 1.0], [0.30, 1.0]]
+    camera_profile: night-driver-n1
+    version: demo-n1-v1

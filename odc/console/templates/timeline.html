@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block head %}
+<script src="/static/vendor/echarts.min.js"></script>
+<style>
+.tl-controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: 12px; margin-bottom: 8px; }
+.tl-controls label { display: inline-flex; align-items: center; gap: 4px; }
+.tl-controls select, .tl-controls input { font-size: 12px; padding: 3px 6px; }
+#chart { height: 460px; min-height: 300px; }
+.tl-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 8px; }
+.tl-event { border: 1px solid var(--line-d); border-radius: var(--radius); padding: 6px 8px; margin-bottom: 6px; font-size: 12px; cursor: pointer; }
+.tl-event[aria-selected="true"] { border-color: var(--accent); background: var(--accent-08); }
+.tl-event .pill { margin-right: 6px; }
+.tl-alert-active { border-color: var(--seat-belt); }
+#ev-list { max-height: 460px; overflow-y: auto; }
+.json-key { color: var(--accent-2); }
+.json-string { color: var(--seat-empty); }
+.json-number { color: var(--seat-child); }
+.json-boolean { color: var(--seat-belt); }
+.json-null { color: var(--t-d3); font-style: italic; }
+#ev { max-height: 420px; overflow: auto; white-space: pre; line-height: 1.55; }
+@media (max-width: 1100px) { .tl-layout { grid-template-columns: 1fr; } #ev-list { max-height: 300px; } }
+</style>
+{% endblock %}
+{% block main %}
+<div class="page-head" title="Every seat and alert event on one evidence clock — click anything to inspect it">
+<div>
+<p class="eyebrow">History · Events</p>
+<h1>Event timeline — {{ badge }}</h1>
+<p class="sub">Every marker is a PLOMID row. Filter, click a marker or entry, jump to its frame.</p>
+</div>
+<div class="actions"><button type="button" class="ghost" id="tl-reset-top" title="Reset chart zoom to the full session" onclick="document.getElementById('tl-reset')?.click()">Reset zoom</button></div>
+</div>
+<div class="card" title="Timeline chart — drag to zoom, scroll to pan, click a marker for evidence">
+<div class="tl-controls">
+<label>Seat <select id="tl-seat"><option value="">all seats</option></select></label>
+<label>Kind <select id="tl-kind">
+<option value="">all kinds</option>
+<option value="SEAT_PRESENCE_CHANGED">presence</option>
+<option value="ALERT_RAISED">alert raised</option>
+<option value="ALERT_CLEARED">alert cleared</option>
+<option value="belt">belt</option>
+<option value="dms">dms</option>
+</select></label>
+<label>Severity <select id="tl-sev">
+<option value="">all</option><option>INFO</option><option>WARNING</option><option>CRITICAL</option>
+</select></label>
+<label><input type="checkbox" id="tl-follow" checked> follow live</label>
+<button type="button" class="ghost" id="tl-reset">Reset zoom</button>
+<span id="tl-count" class="muted"></span>
+</div>
+<div id="chart" role="img" aria-label="Seat event timeline"></div>
+<div class="legend" aria-label="Timeline colors">
+<span class="legend-item"><span class="swatch" style="background:#22c55e"></span>empty</span>
+<span class="legend-item"><span class="swatch" style="background:#ef4444"></span>occupied</span>
+<span class="legend-item"><span class="swatch" style="background:#eab308"></span>uncertain</span>
+<span class="legend-item"><span class="swatch" style="background:#f97316"></span>belt</span>
+<span class="legend-item"><span class="swatch" style="background:#38bdf8"></span>dms</span>
+<span class="legend-item"><span class="swatch" style="background:#a855f7"></span>alert</span>
+<span class="legend-item"><span class="swatch" style="background:#9ca3af"></span>unknown / cleared</span>
+</div>
+<p class="muted">Every marker is a PLOMID <code>odc_event</code> row on one time base (evidence clock).
+Click a marker or list entry to inspect it and jump to its video frame. Colours: green empty · red occupied ·
+yellow uncertain · orange belt · purple alerts · gray unknown.</p>
+</div>
+<div class="tl-layout">
+<div class="card"><h2>Events</h2><div id="ev-list" role="list" aria-label="Session events"><p class="muted">Loading…</p></div></div>
+<div class="card"><h2>Evidence</h2>
+<pre id="ev" class="muted">Click a point.</pre>
+<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+<button type="button" class="ghost" id="ev-frame" disabled>Open video frame</button>
+<button type="button" class="ghost" id="ev-seat" disabled>Show seat events</button>
+</div>
+<div id="ev-frame-wrap" style="margin-top:8px"><img id="ev-img" class="frame" alt="Event frame" style="display:none;max-width:320px"></div>
+</div>
+</div>
+<script>
+(function () {
+  const KIND_COLORS = {
+    'SEAT_PRESENCE_CHANGED': '#e2683c',
+    'ALERT_RAISED': '#a855f7',
+    'ALERT_CLEARED': '#9ca3af',
+    'belt': 'var(--seat-belt)',
+    'dms': '#38bdf8',
+    'default': '#e2683c',
+  };
+  const STATE_COLORS = {
+    'OCCUPIED': 'var(--seat-occupied)', 'LIKELY_OCCUPIED': 'var(--seat-uncertain)',
+    'EMPTY_CANDIDATE': 'var(--seat-empty)', 'UNKNOWN': 'var(--seat-unknown)',
+    'STALE': 'var(--seat-uncertain)', 'ACTIVE': 'var(--seat-restraint)',
+    'CLEARED': 'var(--seat-unknown)',
+  };
+  let allEvents = [];
+  let seatOrder = [];
+  let selected = -1;
+  let chart = null;
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function colorJson(value) {
+    const json = JSON.stringify(value, null, 2);
+    return json.replace(/("(?:\\.|[^"\\])*")([\s]*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false|null)\b/g,
+      (_match, quoted, colon, number, literal) => {
+        if (quoted !== undefined) return `<span class="${colon ? 'json-key' : 'json-string'}">${esc(quoted)}</span>${colon || ''}`;
+        const cls = literal === 'null' ? 'json-null' : literal ? 'json-boolean' : 'json-number';
+        return `<span class="${cls}">${esc(number || literal)}</span>`;
+      });
+  }
+  const params = new URLSearchParams(window.location.search);
+  const session = params.get('session') || '';
+  const evUrl = '/api/events' + (session ? `?session=${encodeURIComponent(session)}` : '');
+
+  function kindOf(e) {
+    const rc = (e.reason_codes || []).join(' ');
+    if (/belt/.test(rc) || e.event_type === 'ALERT_RAISED' && /belt/.test(rc)) return 'belt';
+    if (/dms|DROW|DIST|PHON|YAWN/.test(rc)) return 'dms';
+    return e.event_type;
+  }
+  function colorOf(e) {
+    const st = e.new_state;
+    const color = st && STATE_COLORS[st] ? STATE_COLORS[st] : (KIND_COLORS[kindOf(e)] || KIND_COLORS.default);
+    if (!color.startsWith('var(')) return color;
+    const name = color.slice(4, -1).trim();
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#9ca3af';
+  }
+  function filtered() {
+    const seat = document.getElementById('tl-seat').value;
+    const kind = document.getElementById('tl-kind').value;
+    const sev = document.getElementById('tl-sev').value;
+    return allEvents.filter((e) => {
+      if (seat && (e.seat_id || '—') !== seat) return false;
+      if (sev && (e.severity || '') !== sev) return false;
+      if (kind) {
+        if (kind === 'belt' || kind === 'dms') { if (kindOf(e) !== kind) return false; }
+        else if (e.event_type !== kind) return false;
+      }
+      return true;
+    });
+  }
+  function categories(events) {
+    // Front-to-rear seat order when known; unknown seats sort last.
+    const seats = [...new Set(events.map((e) => e.seat_id || '—'))];
+    seats.sort((a, b) => {
+      const ia = seatOrder.indexOf(a), ib = seatOrder.indexOf(b);
+      if (ia >= 0 && ib >= 0) return ia - ib;
+      if (ia >= 0) return -1;
+      if (ib >= 0) return 1;
+      return String(a).localeCompare(String(b));
+    });
+    return seats.length ? seats : ['—'];
+  }
+  function renderChart() {
+    const el = document.getElementById('chart');
+    if (!chart) chart = echarts.init(el);
+    const events = filtered();
+    const cats = categories(events);
+    const styles = getComputedStyle(document.documentElement);
+    const ink = (styles.getPropertyValue('--chart-ink') || '#a0a6ae').trim();
+    const surface = (styles.getPropertyValue('--graphite') || '#14171b').trim();
+    const line = (styles.getPropertyValue('--line-d2') || '#39404a').trim();
+    const data = events.map((e) => {
+      const eventIdx = allEvents.indexOf(e);
+      return {
+        name: e.event_type,
+        value: [e.occurred_at, e.seat_id || '—', e.new_state, e.event_id, eventIdx],
+        itemStyle: {
+          color: colorOf(e),
+          borderColor: eventIdx === selected ? ink : 'transparent',
+          borderWidth: eventIdx === selected ? 2 : 0,
+        },
+      };
+    });
+    chart.setOption({
+      textStyle: { color: ink, fontFamily: 'monospace' },
+      grid: { left: 90, right: 16, top: 24, bottom: 64 },
+      tooltip: {
+        confine: true,
+        backgroundColor: surface,
+        borderColor: line,
+        textStyle: { color: ink },
+        formatter: (p) => {
+          const e = allEvents[p.data.value[4]];
+          if (!e) return '';
+          return `${esc(e.event_type)}<br>${esc(e.seat_id || '—')} → ${esc(e.new_state || '')}<br>${esc(e.occurred_at)}${e.frame_seq != null ? `<br>frame #${e.frame_seq}` : ''}`;
+        },
+      },
+      xAxis: { type: 'time', axisLabel: { color: ink, hideOverlap: true }, axisLine: { lineStyle: { color: ink } } },
+      yAxis: {
+        type: 'category', data: cats,
+        axisLabel: { color: ink, width: 78, overflow: 'truncate' },
+        axisLine: { lineStyle: { color: ink } },
+      },
+      dataZoom: [{ type: 'inside' }, { type: 'slider', textStyle: { color: ink } }],
+      series: [{
+        type: 'scatter', symbolSize: 13,
+        data: data.map((d) => ({ value: [d.value[0], d.value[1]], itemStyle: d.itemStyle, eventIdx: d.value[4] })),
+        label: { show: false },
+      }],
+      animationDuration: 200,
+    });
+    chart.off('click');
+    chart.on('click', (p) => selectEvent(p.data.eventIdx, true));
+    document.getElementById('tl-count').textContent = `${events.length} of ${allEvents.length} events`;
+  }
+  function applyChartTheme() {
+    if (!chart) return;
+    const styles = getComputedStyle(document.documentElement);
+    const ink = (styles.getPropertyValue('--chart-ink') || '#a0a6ae').trim();
+    const surface = (styles.getPropertyValue('--graphite') || '#14171b').trim();
+    const line = (styles.getPropertyValue('--line-d2') || '#39404a').trim();
+    chart.setOption({
+      textStyle: { color: ink },
+      tooltip: { backgroundColor: surface, borderColor: line, textStyle: { color: ink } },
+      xAxis: { axisLabel: { color: ink }, axisLine: { lineStyle: { color: ink } } },
+      yAxis: { axisLabel: { color: ink }, axisLine: { lineStyle: { color: ink } } },
+      dataZoom: [{}, { textStyle: { color: ink } }],
+    });
+  }
+  function renderList() {
+    const box = document.getElementById('ev-list');
+    const events = filtered().slice(-120).reverse();
+    if (!events.length) { box.innerHTML = '<p class="muted">No events match the filters.</p>'; return; }
+    box.innerHTML = events.map((e) => {
+      const idx = allEvents.indexOf(e);
+      const alert = e.event_type === 'ALERT_RAISED' ? ' tl-alert-active' : '';
+      const sel = idx === selected ? ' aria-selected="true" aria-pressed="true"' : ' aria-selected="false" aria-pressed="false"';
+      const t = (e.occurred_at || '').slice(11, 19);
+      return `<div class="tl-event${alert}" data-idx="${idx}"${sel} tabindex="0" role="button">` +
+        `<span class="pill" style="border-color:${colorOf(e)}">${esc(e.event_type)}</span>` +
+        `<strong>${esc(e.seat_id || '—')}</strong> → ${esc(e.new_state || '')} ` +
+        `<span class="muted">${esc(t)}${e.frame_seq != null ? ` · #${e.frame_seq}` : ''}</span></div>`;
+    }).join('');
+  }
+  function selectEvent(idx, scroll) {
+    selected = idx;
+    const e = allEvents[idx];
+    const pre = document.getElementById('ev');
+    if (!e) { pre.textContent = 'Click a point.'; return; }
+    pre.innerHTML = colorJson(e);
+    const bf = document.getElementById('ev-frame');
+    const bs = document.getElementById('ev-seat');
+    bf.disabled = !(e.frame_seq != null);
+    bs.disabled = !e.seat_id;
+    bf.onclick = () => {
+      const img = document.getElementById('ev-img');
+      img.src = `/frame.jpeg?seq=${encodeURIComponent(e.frame_seq)}`;
+      img.style.display = '';
+    };
+    bs.onclick = () => {
+      document.getElementById('tl-seat').value = e.seat_id;
+      document.getElementById('tl-kind').value = '';
+      document.getElementById('tl-sev').value = '';
+      selected = idx;
+      renderChart();
+      renderList();
+      document.getElementById('tl-seat').focus();
+    };
+    renderChart(); renderList();
+    if (scroll) {
+      const node = document.querySelector(`.tl-event[data-idx="${idx}"]`);
+      if (node) node.scrollIntoView({ block: 'nearest' });
+    }
+  }
+  async function load() {
+    try {
+      const [evRes, layoutRes] = await Promise.all([
+        fetch(evUrl).then((r) => r.json()),
+        fetch('/api/layouts/current').then((r) => r.json()).catch(() => null),
+      ]);
+      allEvents = Array.isArray(evRes) ? evRes : [];
+      // Chronological order keeps playback sync honest.
+      allEvents.sort((a, b) => String(a.occurred_at).localeCompare(String(b.occurred_at)));
+      if (layoutRes && Array.isArray(layoutRes.rows)) seatOrder = layoutRes.rows.flat();
+      const seats = [...new Set(allEvents.map((e) => e.seat_id || '—'))].sort();
+      document.getElementById('tl-seat').innerHTML =
+        '<option value="">all seats</option>' + seats.map((s) => `<option>${esc(s)}</option>`).join('');
+      renderChart(); renderList();
+    } catch (e) {
+      document.getElementById('ev-list').innerHTML = `<p class="muted">Timeline unavailable: ${esc(e)}</p>`;
+    }
+  }
+  ['tl-seat', 'tl-kind', 'tl-sev'].forEach((id) => {
+    document.getElementById(id).addEventListener('change', () => { selected = -1; renderChart(); renderList(); });
+  });
+  document.getElementById('tl-reset').addEventListener('click', () => {
+    if (chart) { chart.dispatchAction({ type: 'dataZoom', start: 0, end: 100 }); }
+  });
+  document.getElementById('ev-list').addEventListener('click', (e) => {
+    const node = e.target.closest && e.target.closest('.tl-event');
+    if (node) selectEvent(parseInt(node.getAttribute('data-idx'), 10), false);
+  });
+  document.getElementById('ev-list').addEventListener('keydown', (e) => {
+    const node = e.target.closest && e.target.closest('.tl-event');
+    if (!node || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    selectEvent(parseInt(node.getAttribute('data-idx'), 10), false);
+  });
+  window.addEventListener('resize', () => { if (chart) chart.resize(); });
+  window.addEventListener('odc-theme-change', applyChartTheme);
+  // Follow live: re-poll while the checkbox is on and no session pins history.
+  setInterval(async () => {
+    if (session || !document.getElementById('tl-follow').checked) return;
+    try {
+      const ev = await fetch(evUrl).then((r) => r.json());
+      if (Array.isArray(ev) && ev.length !== allEvents.length) {
+        allEvents = ev.sort((a, b) => String(a.occurred_at).localeCompare(String(b.occurred_at)));
+        renderChart(); renderList();
+      }
+    } catch (e) {}
+  }, 5000);
+  load();
+})();
+</script>
+{% endblock %}

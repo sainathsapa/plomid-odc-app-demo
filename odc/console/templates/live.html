@@ -1,0 +1,1342 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+/* Live workspace: real source controls, prominent frame and cabin map, plus
+ * persistent context for the selected seat. */
+.layout { grid-template-columns: var(--nav-w, 172px) minmax(0, 1fr) 276px; padding: 10px 14px; gap: 12px; align-items: start; }
+aside.inspector { display: block; position: sticky; top: 68px; max-height: calc(100vh - 82px); overflow: auto; }
+main { min-height: 0; }
+.dash { display: grid; gap: 8px; }
+.dash .card { padding: 12px; margin-bottom: 0; min-height: 0; }
+.dash h2 { font-size: 12px; margin: 0 0 8px; }
+.session-card { position: relative; padding: 7px 10px; }
+.session-card > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 7px; min-height: 28px; }
+.session-card > summary::-webkit-details-marker { display: none; }
+.session-card > summary .caret { color: var(--t-d3); font-size: 11px; }
+.session-grid { display: flex; flex-flow: row nowrap; gap: 8px; align-items: center; margin-top: 6px; }
+.session-grid > .sgroup:first-child { flex: 1.2 1 260px; }
+.session-grid > .sgroup:nth-child(2) { flex: 1.2 1 275px; }
+.sgroup { border: 0; border-left: 1px solid var(--line-d); border-radius: 0; padding: 2px 0 2px 9px; margin: 0; min-width: 0; display: flex; align-items: end; gap: 8px; }
+.sgroup > legend { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.session-grid > .sgroup > .fld, .session-grid > .sgroup > span { min-width: 0; flex: 1 1 0; }
+.session-grid > .sgroup > span > .fld { display: grid; }
+.session-grid > .sgroup > .fld { display: grid; }
+.session-grid > .sgroup > .fld select, .session-grid > .sgroup > .fld input,
+.session-grid > .sgroup > span > .fld select, .session-grid > .sgroup > span > .fld input { min-width: 0; }
+.source-hint:empty { display: none; }
+.fld { display: grid; gap: 2px; font-size: 11px; margin: 0; }
+.fld > span { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--t-d3); }
+.fld select, .fld input { width: 100%; font-size: 12px; padding: 4px 6px; }
+.fld-hint { margin: 0; font-size: 11px; color: var(--t-d3); }
+.toggles { display: flex; flex-wrap: wrap; gap: 5px; }
+.pill-toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-d); border-radius: 999px; padding: 3px 9px; cursor: pointer; font-size: 11px; margin: 0; white-space: nowrap; }
+.pill-toggle:has(input:checked) { border-color: var(--accent); color: var(--accent-2); background: var(--accent-08); }
+.pill-toggle input { accent-color: var(--accent); margin: 0; }
+.sactions { display: flex; gap: 7px; align-items: end; padding-left: 8px; border-left: 1px solid var(--line-d); }
+.sactions .threshold-field { width: 88px; flex: 0 0 88px; }
+.sactions .threshold-field input { width: 100%; }
+.sactions button[type="submit"] { padding: 8px 18px; font-size: 13px; }
+.sactions .ghost { padding: 8px 14px; }
+.srow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.session-advanced { position: relative; flex: 0 0 auto; padding: 0 8px; border-left: 1px solid var(--line-d); }
+.session-advanced > summary { cursor: pointer; color: var(--t-d2); font-size: 11px; white-space: nowrap; }
+.session-advanced[open] .session-grid { position: absolute; z-index: 8; right: 0; top: calc(100% + 8px); width: min(620px, calc(100vw - 32px)); padding: 10px; border: 1px solid var(--line-d2); border-radius: var(--radius); background: var(--surface-raised); box-shadow: var(--shadow-md); }
+.session-advanced .session-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 0; }
+.session-advanced .sgroup { border: 1px solid var(--line-d); border-radius: var(--radius); padding: 6px; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.session-advanced .sgroup > legend { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal; }
+.ops-grid { grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); align-items: stretch; gap: 12px; }
+.side-col { display: flex; min-height: 0; }
+.side-col > .card { width: 100%; min-height: 100%; display: flex; flex-direction: column; }
+.side-col #sidemap-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 4px 0; }
+#seatmap-live { width: 100%; }
+#seatmap-live svg { width: min(100%, 390px); height: auto; max-height: min(52vh, 540px); display: block; margin-inline: auto; }
+.inspector-secondary { display: grid; gap: 12px; margin-top: 12px; }
+.inspector-section { border-top: 1px solid var(--line-d); padding-top: 10px; }
+.inspector-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.inspector-head .eyebrow { margin:0; }
+.seat-detail-close { width:30px; min-height:30px; padding:0; font-size:18px; line-height:1; }
+.inspector-section h2 { display: flex; justify-content: space-between; align-items: center; margin: 0 0 8px; font-size: 12px; }
+.inspector-section .counts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.inspector-section .count { display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--line-d); border-radius: var(--radius-sm, 6px); }
+.inspector-section #analytics { margin-top: 6px; font-size: 10px; line-height: 1.4; }
+.inspector-section #seat-state-list { max-height: 210px; overflow: auto; }
+.inspector-section #alerts, .inspector-section #alerts-recent { display: grid; gap: 0; max-height: 240px; overflow: auto; font-size: 11px; }
+.inspector-section #event-history { display:grid; gap:5px; max-height:260px; overflow:auto; }
+.inspector-section .event-item { margin:0; }
+.inspector-section .alert-item { display: grid; grid-template-columns: minmax(0,1fr); gap: 4px; padding: 8px 9px; margin: 3px 0; border: 1px solid var(--line-d); border-left: 3px solid var(--line-d2); border-radius: var(--radius-sm,6px); background: var(--surface-raised); }
+.alert-top, .alert-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.alert-top strong { font-size: 9px; letter-spacing: .08em; }
+.alert-kind { font-size: 11px; font-weight: 600; text-transform: capitalize; }
+.alert-message { font-size: 11px; line-height: 1.4; color: var(--t-d2); }
+.alert-meta { font-size: 9px; color: var(--t-d3); }
+.alert-item[data-severity="CRITICAL"] .alert-top strong { color: var(--seat-occupied); }
+.alert-item[data-severity="WARNING"] .alert-top strong { color: var(--seat-belt); }
+.alert-item[data-severity="INFO"] .alert-top strong { color: var(--t-d3); }
+.alert-item[data-severity="CRITICAL"] { border-left-color: var(--seat-occupied); }
+.alert-item[data-severity="WARNING"] { border-left-color: var(--seat-belt); }
+.alert-item[data-severity="INFO"] { border-left-color: var(--seat-child); }
+.alerts-empty { padding: 12px 8px; color: var(--t-d3); border: 1px dashed var(--line-d2); text-align: center; }
+.stage-card .frame-activity { margin-top: auto; padding-top: 12px; }
+.frame-activity-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.frame-activity-head h3 { margin: 0; font-size: 11px; }
+.frame-activity-head .spacer { flex: 1; }
+.history { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; max-width: 100%; padding: 3px 2px 8px; scroll-snap-type: x proximity; }
+.hist-btn { display: grid; gap: 4px; min-width: 164px; scroll-snap-align: end; text-align: left; padding: 5px; }
+.hist-btn img { width: 152px; aspect-ratio: 16 / 9; display: block; object-fit: cover; background: var(--ink-2); border-radius: var(--radius); }
+.hist-btn small { font-size: 9px; color: var(--t-d3); }
+.hist-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-08); }
+.evidence-panel { margin-top: 10px; border-top: 1px solid var(--line-d); padding-top: 9px; }
+.evidence-panel h3 { margin: 0 0 7px; font-size: 11px; }
+#evidence { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 6px; max-height: 150px; overflow-y: auto; }
+.evidence-row { min-width: 0; border: 1px solid var(--line-d); border-radius: var(--radius); padding: 6px 8px; }
+.evidence-row-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.evidence-row-head strong { font-size: 11px; }
+.evidence-reasons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.evidence-reason { font: 9px var(--mono); border-radius: 999px; padding: 2px 5px; background: var(--ink-2); color: var(--t-d2); }
+.appearance-note { font-size: 9px; color: var(--t-d3); }
+.gender-status { font-size: 10px; }
+.gender-status[data-state="unavailable"] { color: var(--seat-occupied); }
+.gender-status[data-state="loading"], .gender-status[data-state="starting"] { color: var(--seat-belt); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.assistant-fab { position: fixed; right: 24px; bottom: 20px; z-index: 30; border-radius: 999px; box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,.24)); }
+.assistant-panel { position: fixed; right: 24px; bottom: 76px; z-index: 31; width: min(390px, calc(100vw - 32px)); max-height: min(70vh, 620px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line-d2); border-radius: var(--radius-lg, 12px); background: var(--surface-raised); box-shadow: 0 16px 48px rgba(0,0,0,.28); }
+.assistant-panel[hidden] { display: none; }
+.assistant-panel-head { display: flex; align-items: center; gap: 8px; padding: 11px 13px; border-bottom: 1px solid var(--line-d); }
+.assistant-panel-head h2 { margin: 0; font-size: 13px; }
+.assistant-panel-body { overflow: auto; padding: 10px 12px; }
+.assistant-panel .assistant-note, .assistant-panel .assistant-boundary { padding: 0 12px; }
+.assistant-panel form { padding: 0 12px 12px; }
+.assistant-panel textarea { width: 100%; min-height: 58px; resize: vertical; background: var(--ink-2); color: var(--t-d); border: 1px solid var(--line-d2); border-radius: var(--radius); padding: 8px; font: 12px var(--sans); }
+.assistant-panel textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.assistant-message { padding: 8px 9px; margin: 5px 0; border-radius: var(--radius); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.assistant-message.user { margin-left: 28px; background: var(--accent-08); }
+.assistant-message.model { margin-right: 18px; background: var(--ink-2); }
+.assistant-panel .assistant-answer { min-height: 0; max-height: none; padding: 0; border: 0; }
+.seat-state-list { display: grid; gap: 4px; margin-top: 8px; }
+.seat-state-item { width: 100%; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr); gap: 5px; padding: 7px 8px; text-align: left; }
+.seat-state-item .seat-state-name { display: grid; gap: 1px; }
+.seat-state-item .seat-state-value { font-size: 11px; color: var(--t-d2); }
+.seat-state-item.selected { border-color: var(--accent); background: var(--accent-08); }
+.seat-state-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.seat-state-head > strong { white-space: nowrap; }
+.seat-state-head .seat-state-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat-attribute-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 3px; width: 100%; }
+.seat-attribute { display: flex; align-items: center; gap: 3px; min-width: 0; padding: 2px 4px; border-radius: 4px; background: var(--ink-2); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat-attribute[data-positive="child"] { border-left: 2px solid var(--seat-child); }
+.seat-attribute[data-positive="restraint"] { border-left: 2px solid var(--seat-restraint); }
+.seat-attribute small { color: var(--t-d3); font: 8px var(--mono); }
+.seat-state-badges { display: flex; justify-content: flex-end; align-items: center; gap: 4px; flex-wrap: wrap; }
+.mini-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.mini-table th, .mini-table td { padding: 2px 3px; border-bottom: 1px solid var(--line-d); text-align: left; white-space: nowrap; }
+.mini-table th { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t-d3); }
+.mini-table .pill { font-size: 9px; padding: 1px 6px; }
+.strip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.strip .assistant-card { grid-column: 1 / -1; }
+.strip .card { overflow: hidden; }
+.strip { padding: 12px; border: 1px solid var(--line-d); border-radius: var(--radius); background: var(--surface); }
+.strip .card { border: 0; border-bottom: 1px solid var(--line-d); border-radius: 0; box-shadow: none; background: transparent; padding: 0 0 10px; }
+.strip .assistant-card { border-bottom: 0; padding-bottom: 0; }
+#evidence { font-size: 11px; }
+.strip .crops { display: flex; gap: 6px; overflow-x: auto; max-width: 100%; }
+.counts { gap: 6px; }
+.count { min-width: 0; padding: 4px 6px; }
+.count strong { font-size: 15px; }
+.legend { gap: 6px; margin-top: 4px; }
+.legend-item { font-size: 0.62rem; }
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 1fr; }
+  .ops-grid, .strip { grid-template-columns: 1fr; }
+  aside.inspector { position: static; max-height: none; }
+  .side-col > .card { min-height: 0; }
+  .side-col #sidemap-wrap { min-height: 300px; }
+  .side-col #seatmap-live svg { max-height: 62vh; }
+  .session-grid { flex-wrap: wrap; }
+  .session-grid > .sgroup:first-child, .session-grid > .sgroup:nth-child(2) { flex: 1 1 280px; }
+}
+@media (max-width: 700px) {
+  .session-grid, .session-advanced .session-grid { display: grid; grid-template-columns: minmax(0,1fr); }
+  .session-grid > .sgroup { border-left: 0; padding-left: 0; }
+  .session-advanced .sgroup { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .sactions { position: sticky; bottom: 8px; z-index: 4; background: var(--surface-raised); padding: 8px; border: 1px solid var(--line-d); }
+  #seatmap-live svg { max-height: none; }
+  .assistant-panel { right: 12px; bottom: 70px; }
+  .assistant-fab { right: 12px; bottom: 12px; }
+}
+</style>
+{% endblock %}
+{% block topbar_action %}
+<button type="button" id="toggle-session" class="{{ 'ghost' if snapshot and snapshot.running else 'primary' }}" data-running="{{ 'true' if snapshot and snapshot.running else 'false' }}" onclick="toggleSession(event)" title="Start or stop the current inference session">{{ 'Stop session' if snapshot and snapshot.running else 'Start session' }}</button>
+{% endblock %}
+{% block main %}
+<div class="dash">
+<div class="page-head" title="Cabin occupancy operations: start a source, watch every seat, inspect evidence">
+<div>
+<p class="eyebrow">Operations · Live cabin</p>
+<h1>Cabin occupancy</h1>
+<p class="sub">Run a cabin session, inspect seat evidence and review recent events in one workspace.</p>
+</div>
+<div class="actions">
+<span id="service-status" class="kv" role="status" aria-live="polite" title="Session state, active source and processing health">Idle — configure a source or use the selected replay.</span>
+</div>
+</div>
+
+<details class="card session-card" {% if not snapshot or not snapshot.running %}open{% endif %}>
+<summary title="Choose input and cabin geometry. This panel is collapsed to keep the live workspace clear.">
+<span class="caret">▾</span><strong style="font-size:12px">Session setup</strong>
+<span class="muted" style="font-size:11px">Source · cabin · options</span>
+<span style="flex:1"></span>
+</summary>
+<form id="runform" autocomplete="off" onsubmit="return toggleSession(event)"
+      x-data="{ clips: [], layouts: [], source: 'replay' }"
+      x-init="fetch('/api/service/sources').then(r => r.json()).then(j => { clips = j.clips.concat(j.uploads || []); layouts = (j.layouts || []).filter(l => !['standard-2-seat-rhd','standard-5-seat-rhd','standard-7-seat-rhd'].includes(l)); $nextTick(() => { const p = document.getElementById('f-path'); const hint = document.getElementById('source-hint'); if (p && !p.value && clips.length) p.value = 'footage/' + clips[0]; if (hint && !clips.length) hint.textContent = 'No replay clips found. Add a video using Advanced options, or select Live camera.'; window.previewSelectedClip?.(); }); }).catch(() => { const hint = document.getElementById('source-hint'); if (hint) hint.textContent = 'Could not load source list. Check the console service and retry.'; })">
+<div class="session-grid">
+<fieldset class="sgroup" title="Which video to analyse: a bundled replay clip or a live camera device">
+<legend>Video source</legend>
+<label class="fld" title="Replay a file frame-by-frame, or pull from a live camera device"><span>Source</span>
+<select id="f-source" x-model="source" title="replay = file on disk · live = camera device or URL">
+<option value="replay">Replay file</option><option value="live">Live camera</option>
+</select>
+</label>
+<span x-show="source === 'replay'">
+<label class="fld" title="Bundled footage or a clip you uploaded below"><span>Clip</span>
+<select id="f-path" title="Pick the video file to analyse">
+<option value="" disabled selected>Select a video…</option>
+<template x-for="clip in clips" :key="clip"><option :value="'footage/' + clip" x-text="clip"></option></template>
+</select>
+</label>
+<span id="source-hint" class="fld-hint source-hint" role="status" aria-live="polite"></span>
+</span>
+<span x-show="source === 'live'">
+<label class="fld" title="Camera index (0, 1) or stream URL"><span>Device</span><input id="f-device" value="0" placeholder="0, 1, URL…" title="Camera device index or stream URL"></label>
+</span>
+</fieldset>
+<fieldset class="sgroup" title="Seat geometry: automatic proposal, standard layout, or a camera-calibrated map from PLOMID">
+<legend>Seat layout</legend>
+<label class="fld" title="Automatic proposal probes this replay; standard/custom layouts use explicit versioned geometry"><span>Layout</span>
+<select id="f-layout" title="Seat geometry to apply">
+<option value="auto" selected>Auto-detect cabin layout</option>
+<option value="standard-5-seat-rhd">Five-seat cabin</option>
+<option value="standard-2-seat-rhd">Two-seat cabin</option>
+<option value="standard-7-seat-rhd">Seven-seat cabin</option>
+<template x-for="layout in layouts" :key="layout"><option :value="layout" x-text="layout"></option></template>
+</select>
+</label>
+<label class="fld" title="Auto uses the video probe when it can determine steering side; choose RHD or LHD to override"><span>Steering side</span><select id="f-orientation"><option value="UNKNOWN" selected>Auto</option><option value="RHD">RHD</option><option value="LHD">LHD</option></select></label>
+</fieldset>
+<details class="session-advanced"><summary>Advanced analysis, optional models and upload</summary>
+<div class="session-grid">
+<fieldset class="sgroup" title="Analysis: detection confidence, mask quality and optional pose / face / appearance previews">
+<legend>Analysis</legend>
+<label class="fld" title="Masks: fast classical (live) or precise SAM (background, labelled by frame)"><span>Masks</span>
+<select id="f-mask" title="Segmentation quality"><option value="fast">Fast</option><option value="precise">Precise</option></select>
+</label>
+<div class="toggles">
+<label class="pill-toggle" title="Replay the clip on loop"><input type="checkbox" id="f-loop" checked><span>loop</span></label>
+<label class="pill-toggle" title="Body-pose tracking: skeletons, seat association and belt frontality (extra compute)"><input type="checkbox" id="f-pose" checked><span>pose</span></label>
+<label class="pill-toggle" title="Driver-aware DMS: drowsiness/sleep proxy, head-turn distraction, yawning and phone-near-driver candidates (extra compute)"><input type="checkbox" id="f-dms"><span>DMS driver</span></label>
+</div>
+</fieldset>
+<fieldset class="sgroup" title="Run your own footage: upload a clip, then pick it above and press Start">
+<legend>Your clip</legend>
+<label class="fld" title="Upload your own clip (mp4/mov/avi/mkv/webm, max 200 MB)"><span>File</span><input type="file" id="f-upload" accept="video/*" title="Video file to upload"></label>
+<div class="srow"><button type="button" class="ghost" onclick="uploadClip()" title="Upload the selected file to footage/uploads">Upload</button><span id="upload-status" class="muted"></span></div>
+</fieldset>
+</div>
+</details>
+<div class="sactions">
+<label class="fld threshold-field" title="Minimum detector confidence used for all classes. Boxes below this value are filtered before seat-state classification."><span>Min score</span><input type="number" id="f-threshold" min="0" max="1" step="0.05" value="0.7" autocomplete="off"></label>
+</div>
+</div>
+</form>
+</details>
+<script>
+let sessionRunning = document.getElementById('toggle-session')?.dataset.running === 'true';
+let sessionActionBusy = false;
+let selectedPreview = false;
+let previewObjectUrl = null;
+let previewRequestId = 0;
+function clearSelectedPreview() {
+  selectedPreview = false;
+  previewRequestId += 1;
+  if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+  previewObjectUrl = null;
+  const image = document.getElementById('live-frame');
+  if (image) image.dataset.sourcePreview = 'false';
+}
+function fitPreviewStage() {
+  const image = document.getElementById('live-frame');
+  const box = document.getElementById('stage-box');
+  if (!image || !box || !image.naturalWidth || !image.naturalHeight) return;
+  const ratio = image.naturalWidth / image.naturalHeight;
+  if (ratio > 0.4 && ratio < 4) box.style.aspectRatio = `${image.naturalWidth} / ${image.naturalHeight}`;
+}
+window.previewSelectedClip = async function () {
+  const source = document.getElementById('f-source')?.value;
+  const select = document.getElementById('f-path');
+  const path = select?.value;
+  const image = document.getElementById('live-frame');
+  const empty = document.getElementById('no-frame');
+  const sourceLabel = document.getElementById('preview-source');
+  if (source !== 'replay' || !path || sessionRunning || !image) {
+    if (sourceLabel) sourceLabel.textContent = '';
+    clearSelectedPreview();
+    if (empty && !sessionRunning) { empty.style.display = ''; empty.textContent = 'Select a replay clip to preview its first frame.'; }
+    if (image && !sessionRunning) { image.style.display = 'none'; image.removeAttribute('src'); }
+    return;
+  }
+  const requestId = ++previewRequestId;
+  if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+  previewObjectUrl = null;
+  image.style.display = 'none';
+  selectedPreview = true;
+  const option = select.options[select.selectedIndex];
+  const name = option?.textContent?.trim() || path.split('/').pop() || 'selected video';
+  if (sourceLabel) sourceLabel.textContent = `· ${name}`;
+  if (empty) { empty.style.display = ''; empty.textContent = `Loading first frame · ${name}…`; }
+  try {
+    const response = await fetch(`/api/service/preview.jpeg?path=${encodeURIComponent(path)}`, {cache:'force-cache'});
+    if (!response.ok) throw new Error((await response.json()).error || 'Preview unavailable');
+    const objectUrl = URL.createObjectURL(await response.blob());
+    if (requestId !== previewRequestId) { URL.revokeObjectURL(objectUrl); return; }
+    previewObjectUrl = objectUrl;
+    image.onload = fitPreviewStage;
+    image.src = objectUrl;
+    image.alt = `First frame preview from ${name}; inference has not started`;
+    image.title = `Selected video: ${name} · first frame preview, not yet processed`;
+    image.dataset.sourcePreview = 'true';
+    image.style.display = '';
+    if (empty) empty.style.display = 'none';
+    const meta = document.getElementById('live-meta');
+    if (meta) meta.textContent = `Preview · ${name} · first frame · inference has not started`;
+    const overlay = document.getElementById('live-overlay');
+    if (overlay) overlay.innerHTML = '';
+  } catch (error) {
+    if (requestId !== previewRequestId) return;
+    selectedPreview = false;
+    image.style.display = 'none';
+    if (empty) { empty.style.display = ''; empty.textContent = `${name}: ${error.message}`; }
+  }
+};
+document.getElementById('f-path')?.addEventListener('change', () => window.previewSelectedClip());
+document.getElementById('f-source')?.addEventListener('change', () => window.previewSelectedClip());
+function updateSessionAction(running = sessionRunning) {
+  sessionRunning = !!running;
+  const button = document.getElementById('toggle-session');
+  if (!button) return;
+  button.dataset.running = sessionRunning ? 'true' : 'false';
+  button.textContent = sessionActionBusy ? (sessionRunning ? 'Stopping…' : 'Starting…') : (sessionRunning ? 'Stop session' : 'Start session');
+  button.setAttribute('aria-label', sessionRunning ? 'Stop inference session' : 'Start inference session');
+  button.title = sessionRunning ? 'Stop the current inference session' : 'Start inference with the selected source and cabin';
+  button.disabled = sessionActionBusy;
+  button.classList.toggle('ghost', sessionRunning);
+  button.classList.toggle('primary', !sessionRunning);
+}
+function toggleSession(event) {
+  if (event) event.preventDefault();
+  return sessionRunning ? stopRun() : startRun(event);
+}
+async function startRun(e) {
+  if (e) e.preventDefault();
+  const status = document.getElementById('service-status');
+  sessionActionBusy = true;
+  updateSessionAction(false);
+  status.textContent = 'Starting perception session…';
+  const source = document.getElementById('f-source').value;
+  const body = {
+    source,
+    path: source === 'live'
+      ? document.getElementById('f-device').value
+      : document.getElementById('f-path').value,
+    layout: document.getElementById('f-layout').value || 'auto',
+    orientation: document.getElementById('f-orientation').value,
+    threshold: parseFloat(document.getElementById('f-threshold').value || '0.7'),
+    replay_loop: document.getElementById('f-loop').checked,
+    restart: true,
+    pose: document.getElementById('f-pose').checked,
+    dms: document.getElementById('f-dms').checked,
+    gender: false,
+    mask: document.getElementById('f-mask').value,
+  };
+  if (source === 'replay' && !body.path) {
+    status.textContent = 'Choose a replay clip or upload a video in Advanced options.';
+    const path = document.getElementById('f-path');
+    if (path) path.focus();
+    sessionActionBusy = false;
+    updateSessionAction(sessionRunning);
+    return false;
+  }
+  try {
+    const r = await fetch('/api/service/start', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)});
+    const j = await r.json().catch(() => ({}));
+    const inferredSteering = j.probe?.orientation && j.probe.orientation !== 'UNKNOWN' ? ` (${j.probe.orientation} inferred)` : '';
+    document.getElementById('service-status').textContent = r.ok
+      ? `Running — session ${j.session_id} · ${j.layout} · steering ${body.orientation === 'UNKNOWN' ? `Auto${inferredSteering}` : body.orientation}`
+      : `Not started: ${j.error || 'server rejected the request'}`;
+    if (r.ok) { clearSelectedPreview(); updateSessionAction(true); }
+    if (r.ok && typeof window.refreshSeatMap === 'function') {
+      setTimeout(() => window.refreshSeatMap(), 0);
+    }
+  } catch (err) {
+    status.textContent = `Not started: ${err.message || 'console could not reach the service'}`;
+    window.previewSelectedClip();
+  } finally {
+    sessionActionBusy = false;
+    updateSessionAction(sessionRunning);
+  }
+  return false;
+}
+async function uploadClip() {
+  const input = document.getElementById('f-upload');
+  const status = document.getElementById('upload-status');
+  if (!input.files || !input.files.length) { status.textContent = 'Pick a file first.'; return; }
+  const file = input.files[0];
+  status.textContent = `Uploading ${file.name}…`;
+  try {
+    const r = await fetch(`/api/service/upload?filename=${encodeURIComponent(file.name)}`, {
+      method: 'POST', body: file});
+    const j = await r.json();
+    if (!r.ok) { status.textContent = `Upload failed: ${j.error}`; return; }
+    const sel = document.getElementById('f-path');
+    const opt = document.createElement('option');
+    opt.value = j.path; opt.textContent = j.clip; opt.selected = true;
+    sel.appendChild(opt);
+    window.previewSelectedClip();
+    document.getElementById('f-layout').value = 'auto';
+    status.textContent = `Uploaded ${j.clip} — Auto-detect and general threshold 0.7 are selected; cabin-tuned person/seat gates stay enabled.`;
+  } catch (e) {
+    status.textContent = `Upload failed: ${e}`;
+  }
+}
+async function stopRun() {
+  sessionActionBusy = true;
+  updateSessionAction(true);
+  try {
+    const r = await fetch('/api/service/stop', {method: 'POST'});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || `stop failed (${r.status})`);
+    updateSessionAction(false);
+    document.getElementById('service-status').textContent = j.stopped ? 'Stopped — last states kept.' : 'Idle.';
+  } catch (error) {
+    document.getElementById('service-status').textContent = `Could not stop session: ${error.message}`;
+  } finally {
+    sessionActionBusy = false;
+    updateSessionAction(sessionRunning);
+  }
+}
+</script>
+
+<div class="ops-grid">
+<div class="card stage-card" title="Live video with detection overlays. Toggle layers without stopping analysis.">
+<div class="card-head">
+<h2 title="Live stream state: LIVE, REPLAY, DEGRADED or DISCONNECTED">Live stream <span id="preview-source" class="muted" aria-live="polite"></span> — <span id="live-badge" title="Stream state badge">{{ badge }}</span><span id="conn-dot" class="conn idle" title="stream connection">●</span></h2>
+<span class="spacer"></span>
+<span id="view-kind" class="pill" title="Whether you are watching the live edge or a pinned historical frame">LIVE</span>
+<span id="orientation-badge" class="pill" title="Steering mode is automatic unless RHD or LHD is explicitly selected">Steering: Auto</span>
+</div>
+<div class="seg" role="group" aria-label="Overlay layers" title="Overlay layers: show or hide each visual layer. Analysis keeps running either way.">
+<label title="Seat zones: calibrated polygons coloured by presence (display only)"><input type="checkbox" id="tgl-seats" checked> Seats</label>
+<label title="People: person masks (solid = refined mask, dashed = box fallback)"><input type="checkbox" id="tgl-people" checked> People</label>
+<label title="Belts: detected strap segments (green) and no-belt regions (orange dashed)"><input type="checkbox" id="tgl-belts" checked> Belts</label>
+<label title="Body-pose skeletons (only when the session was started with pose on)"><input type="checkbox" id="tgl-pose"> Pose</label>
+<label title="Face landmarks (only when the session was started with face previews on)"><input type="checkbox" id="tgl-face"> Face</label>
+<label title="MiVOLO apparent-gender estimate by seat; an appearance label, not verified sex or gender"><input type="checkbox" id="tgl-gender" checked> Gender estimate</label>
+</div>
+<div class="stage-box" id="stage-box" title="Latest processed frame with seat, person and belt overlays">
+<img id="live-frame" class="frame" src="{% if has_frame %}/frame.jpeg{% endif %}" alt="Latest processed frame"{% if not has_frame %} style="display:none"{% endif %} title="Latest processed frame from the inference pipeline">
+<svg id="live-overlay" class="overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label="Segmentation masks and detections" title="Overlays: seats, people, belts, pose, face"></svg>
+{% if not has_frame %}<div id="no-frame" class="empty" title="Select a replay clip to preview its opening frame">Select a replay clip to preview its first frame.</div>{% endif %}
+</div>
+<div class="meta-strip">
+<span id="live-meta" class="muted meta-line" title="Frame clock: sequence, capture time, processed/dropped counts, latency, threshold and database health">Waiting for frames…</span>
+<span id="det-list" class="muted meta-line det-line" title="Top detections on this frame: label, confidence and tag. Lower Threshold to see more."></span>
+</div>
+<section class="frame-activity" aria-label="Live frame sequence and evidence">
+<div class="frame-activity-head">
+<h3>Recent frames <span class="muted">· select a frame to inspect; processing stays live</span></h3>
+<span class="spacer"></span>
+<span id="gender-status" class="gender-status muted" role="status" aria-live="polite">Appearance estimate: off</span>
+<button type="button" class="ghost" id="return-live" hidden>Return to latest frame</button>
+</div>
+<div id="history" class="history" aria-label="Continuous rolling frame history">
+{% if history %}{% for h in history %}<button class="ghost hist-btn" data-seq="{{ h.seq }}" aria-pressed="false" title="Inspect frame {{ h.seq }}; processing continues"><img src="/frame-thumb.jpeg?seq={{ h.seq }}&amp;v={{ h.captured_at|urlencode }}" alt="Actual processed frame {{ h.seq }}" loading="lazy" decoding="async"><strong>Frame {{ h.seq }}</strong><small>{{ h.captured_at[11:19] }} · {{ h.n_detections }} detections</small></button>{% endfor %}{% else %}<span class="muted">Frame previews appear while video is processing.</span>{% endif %}
+</div>
+<div class="evidence-panel">
+<h3>Seat evidence <span class="muted">· reasons behind current labels</span></h3>
+<div id="evidence" class="muted" aria-live="polite">
+{% if session and seat_rows %}
+{% for row in seat_rows %}
+<article class="evidence-row" data-seat="{{ row.seat_id }}">
+<div class="evidence-row-head"><strong>{{ row.display_name or row.seat_id }}</strong><span class="pill">{{ row.presence }}</span><span class="muted">{{ '%.2f'|format(row.confidence|default(0)) }}</span></div>
+<div>Child: {{ row.child|default('Unknown') }} · Occupant: {{ row.occupant_category|default('unknown') }} · Belt: {{ row.belt|default('Unknown') }} · Posture: {{ row.posture|default('UNKNOWN') }}</div>
+<div class="evidence-reasons">{{ (row.reason_codes|default([]))|join(', ') }} {{ row.child_reason|default('') }}{% if row.age_reason %} · {{ row.age_reason }}{% endif %}</div>
+</article>
+{% endfor %}
+{% else %}Evidence appears when seat observations are available.{% endif %}
+</div>
+</div>
+</section>
+</div>
+
+<div class="side-col">
+<div class="card" style="min-height:0" title="Cabin seat map: schematic or true calibrated zones, coloured by live presence">
+<div class="card-head">
+<h2 title="Seat map view">Seat map</h2>
+<span class="spacer"></span>
+<button type="button" class="ghost seatview-btn" data-view="car" title="Vehicle schematic: seats arranged as a cabin diagram" style="padding:2px 8px;font-size:11px">Schematic</button>
+<button type="button" class="ghost seatview-btn" data-view="poly" title="True calibrated zones drawn over the live frame">Zones</button>
+</div>
+<p id="map-meta" class="map-meta muted">{{ layout.display_name or layout.version }} · steering Auto · {{ layout.seats|length }} seats</p>
+<div id="sidemap-wrap" style="position:relative" title="Seat zones — click a seat to inspect it">
+<img id="sidemap-frame" alt="Latest frame behind zones" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:fill" title="Live frame behind the calibrated zones">
+<div id="seatmap-live"{% if session %} hx-get="/partials/seat-map?session={{ session }}&view=car" hx-trigger="every 3s" hx-swap="innerHTML"{% endif %} style="position:relative">
+{% include "partials/_seatmap.html" %}
+</div>
+</div>
+<div class="legend" title="Seat colours: green empty candidate, red occupied, yellow uncertain, blue child, purple child-seat, orange belt issue, gray unknown">
+{% for color, label in legend %}
+<span class="legend-item" title="{{ label }} seats"><span class="swatch" data-state="{{ label|lower|replace(' ', '-') }}"></span>{{ label }}</span>
+{% endfor %}
+</div>
+</div>
+</div>
+</div>
+
+<div class="strip">
+<div class="card" title="Per-frame person crops and mask provenance">
+<div class="card-head"><h2 title="Person crops for this frame">Crops + masks <span class="muted">(per frame)</span> <span id="mask-src" class="muted" title="Mask source: fast classical refinement, or precise SAM with its source frame">masks: fast</span></h2></div>
+<div id="crops" class="crops" title="Person thumbnails for the latest frame"><span class="muted">No crops yet.</span></div>
+<p class="muted" style="margin:4px 0 0" title="Mask and attribute honesty note">Masks: classical GrabCut refinement (solid) vs bbox fallback (dashed). Belt: camera-Unsupported · Child/restraint: candidates.</p>
+</div>
+</div>
+</div>
+
+<button type="button" id="assistant-toggle" class="primary assistant-fab" aria-expanded="false" aria-controls="assistant-panel">Ask local Mistral</button>
+<section id="assistant-panel" class="assistant-panel" role="dialog" aria-modal="false" aria-labelledby="assistant-title" aria-hidden="true" hidden>
+<div class="assistant-panel-head"><h2 id="assistant-title">Ask local Mistral</h2><span class="muted">on demand</span><span class="spacer"></span><button type="button" id="assistant-close" class="ghost" aria-label="Close Mistral chat">Close</button></div>
+<p class="muted assistant-note">PLOMID answers from this cabin session. It can explain observed states and events, but cannot change detections or write model guesses to the database.</p>
+<div id="assistant-answer" class="assistant-answer assistant-panel-body" role="log" aria-live="polite" aria-relevant="additions">Ask a question about this session.</div>
+<form id="assistant-form">
+<label class="sr-only" for="assistant-prompt">Question about PLOMID Cabin</label>
+<textarea id="assistant-prompt" rows="2" maxlength="2000" placeholder="Ask about occupants, seats, events or system status…"></textarea>
+<div class="assistant-actions"><button id="assistant-ask" class="primary" type="submit">Send</button><span id="assistant-status" class="muted" role="status">Waiting for a question</span></div>
+</form>
+</section>
+
+<script>
+(function () {
+  let lastVersion = -1;
+  let lastFrameSeq = null;
+  let latestState = null;
+  let lastSession = null;
+  let evtSource = null;
+  let pollTimer = null;
+  let reconnectDelay = 1000;
+  let lastPolygons = null;
+  let pinnedFrameSeq = null;
+  let historySignature = '';
+  const TOGGLES = {seats: 'tgl-seats', people: 'tgl-people', belts: 'tgl-belts', pose: 'tgl-pose', face: 'tgl-face', gender: 'tgl-gender'};
+  let toggleState = {seats: true, people: true, belts: true, pose: false, face: false, gender: true};
+  try {
+    const saved = JSON.parse(localStorage.getItem('odc-toggles') || 'null');
+    if (saved) toggleState = Object.assign(toggleState, saved);
+  } catch (e) {}
+  function showGroup(id, on) {
+    const g = document.getElementById(id);
+    if (g) g.style.display = on ? '' : 'none';
+  }
+  function applyToggles() {
+    for (const [key, id] of Object.entries(TOGGLES)) {
+      const box = document.getElementById(id);
+      const on = box ? box.checked : !!toggleState[key];
+      toggleState[key] = on;
+      showGroup('ly-' + key, on);
+    }
+    try { localStorage.setItem('odc-toggles', JSON.stringify(toggleState)); } catch (e) {}
+  }
+  function syncToggleBoxes() {
+    for (const [key, id] of Object.entries(TOGGLES)) {
+      const box = document.getElementById(id);
+      if (box) box.checked = !!toggleState[key];
+    }
+  }
+  const dot = () => document.getElementById('conn-dot');
+  const setDot = (cls, title) => {
+    const d = dot();
+    if (d) { d.className = 'conn ' + cls; d.title = title; }
+  };
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+  function fitStage() {
+    // The stage hugs the real video aspect so the page carries no empty
+    // letterbox: overlays use preserveAspectRatio="none" over the same box,
+    // so seats stay aligned at any aspect.
+    try {
+      const img = document.getElementById('live-frame');
+      const box = document.getElementById('stage-box');
+      if (!img || !box || !img.naturalWidth || !img.naturalHeight) return;
+      const ar = img.naturalWidth / img.naturalHeight;
+      if (ar > 0.4 && ar < 4) box.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
+    } catch (e) {}
+  }
+  function renderOverlay(detections, masks, polygons, belts, pose, face) {
+    const svg = document.getElementById('live-overlay');
+    if (!svg) return;
+    lastPolygons = polygons || lastPolygons;
+    const placedLabels = [];
+    const seatLabelPositions = new Map();
+    (lastPolygons || []).forEach((p) => {
+      const name = String(p.display_name || p.seat_id || 'Seat');
+      const font = Math.max(11, Math.min(17, Math.floor(280 / Math.max(name.length * 0.62, 1))));
+      const appearance = p.gender === 'APPARENT_MAN' ? ' · M est.' : p.gender === 'APPARENT_WOMAN' ? ' · F est.' : '';
+      const genderVisible = toggleState.gender && !!appearance;
+      const width = Math.min(280, Math.max(52, name.length * font * 0.62, appearance.length * font * 0.62));
+      const height = font + (genderVisible ? font + 3 : 8);
+      if (!Array.isArray(p.polygon) || p.polygon.length < 3) return;
+      const cx = p.polygon.reduce((sum, point) => sum + point[0], 0) / p.polygon.length * 1000;
+      const cy = p.polygon.reduce((sum, point) => sum + point[1], 0) / p.polygon.length * 1000;
+      const candidates = [[cx, cy], [cx, cy - 30], [cx, cy + 30], [cx, cy - 54], [cx, cy + 54],
+        [cx - width * 0.58, cy], [cx + width * 0.58, cy]];
+      let chosen = null;
+      let chosenBox = null;
+      let fallback = null;
+      for (const candidate of candidates) {
+        const x = Math.max(width / 2 + 4, Math.min(996 - width / 2, candidate[0]));
+        const y = Math.max(font + 5, Math.min(997 - (genderVisible ? font + 5 : 4), candidate[1]));
+        const box = [x - width / 2, y - font - 4, x + width / 2, y + (genderVisible ? font + 5 : 4)];
+        fallback = {position: [x, y], box};
+        if (!placedLabels.some((prior) => box[0] < prior[2] && prior[0] < box[2] && box[1] < prior[3] && prior[1] < box[3])) {
+          chosen = [x, y];
+          chosenBox = box;
+          break;
+        }
+      }
+      if (!chosen) { chosen = fallback.position; chosenBox = fallback.box; }
+      placedLabels.push(chosenBox);
+      seatLabelPositions.set(p.seat_id, {x:chosen[0], y:chosen[1], font, name, appearance:genderVisible ? appearance : ''});
+    });
+    let seats = '';
+    let genderLabels = '';
+    (lastPolygons || []).forEach((p) => {
+      const pts = (p.polygon || []).map((q) => `${(q[0]*1000).toFixed(1)},${(q[1]*1000).toFixed(1)}`).join(' ');
+      if (!pts) return;
+      const cx = p.polygon.reduce((a, q) => a + q[0], 0) / p.polygon.length * 1000;
+      const cy = p.polygon.reduce((a, q) => a + q[1], 0) / p.polygon.length * 1000;
+      let rings = '';
+      if (p.restraint || p.restraint_candidate || p.child_seat_candidate) {
+        const candidateRing = (p.restraint_candidate || p.child_seat_candidate) && !p.restraint ? ' stroke-dasharray="12 8"' : '';
+        rings += `<circle cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" r="52" fill="none" stroke="#a855f7" stroke-width="11"${candidateRing}/>`;
+      }
+      if (p.belt_issue) {
+        rings += `<circle cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" r="80" fill="none" stroke="#f97316" stroke-width="6" stroke-dasharray="16 12"/>`;
+      }
+      let badges = '';
+      if (p.child === 'Yes') badges += ' · child candidate';
+      if (p.restraint_candidate) badges += ' · restraint candidate';
+      else if (p.child_seat_candidate) badges += ' · CRS?';
+      if (toggleState.gender && p.gender === 'APPARENT_MAN') badges += ' · M appearance estimate';
+      else if (toggleState.gender && p.gender === 'APPARENT_WOMAN') badges += ' · F appearance estimate';
+      if (p.belt_issue) badges += ' · belt?';
+      else if (p.belt === 'Detected') badges += ' · strap candidate';
+      const label = seatLabelPositions.get(p.seat_id) || {x:cx, y:cy, font:13, name:p.display_name || p.seat_id};
+      if (label.appearance) {
+        genderLabels += `<text class="maplabel gender-maplabel" x="${label.x.toFixed(0)}" y="${(label.y + label.font + 2).toFixed(0)}" font-size="${Math.max(9, label.font - 2)}" text-anchor="middle" style="paint-order:stroke" stroke="var(--map-label-halo)" stroke-width="3"><title>MiVOLO apparent-gender estimate; uncalibrated</title>${esc(label.appearance)}</text>`;
+      }
+      seats += `<g class="seat-overlay" data-seat="${esc(p.seat_id)}"><polygon points="${pts}" fill="${esc(p.color)}" fill-opacity="0.32" stroke="${esc(p.color)}" stroke-width="4"/><text class="maplabel" x="${label.x.toFixed(0)}" y="${label.y.toFixed(0)}" font-size="${label.font}" text-anchor="middle" style="paint-order:stroke" stroke="var(--map-label-halo)" stroke-width="3.5"><title>${esc(p.display_name || p.seat_id)}${esc(badges)}</title>${esc(label.name)}</text>${rings}<title>${esc(p.label)}${esc(badges)} (seat region)</title></g>`;
+    });
+    let people = '';
+    (masks || []).forEach((m) => {
+      const pts = (m.polygon || []).map((p) => `${(p[0]*1000).toFixed(1)},${(p[1]*1000).toFixed(1)}`).join(' ');
+      if (!pts) return;
+      const dash = m.fallback ? ' stroke-dasharray="10 6"' : '';
+      people += `<polygon points="${pts}" fill="${esc(m.color)}" fill-opacity="0.32" stroke="${esc(m.color)}" stroke-width="3"${dash}><title>${esc(m.label)} ${(m.score||0).toFixed(2)} (${m.fallback ? 'bbox-fallback' : 'classical-mask'})</title></polygon>`;
+    });
+    (detections || []).slice(0, 12).forEach((d) => {
+      const b = d.bbox || [0,0,0,0];
+      const x0 = Math.round(b[0]*1000), y0 = Math.round(b[1]*1000);
+      const x1 = Math.round(b[2]*1000), y1 = Math.round(b[3]*1000);
+      const tag = d.tag ? ` · ${esc(d.tag)}` : '';
+      const seat = d.seat ? ` [${esc(d.seat)}]` : '';
+      const txt = `${d.label} ${(d.score||0).toFixed(2)}${d.tag ? ' · ' + d.tag : ''}`;
+      const lw = Math.min(360, txt.length * 9 + 8);
+      let lx = Math.min(x0, 1000 - lw), ly = y0 + 18;
+      for (let k = 0; k < 6; k++) {
+        const box = [lx, ly - 15, lx + lw, ly + 4];
+        if (!placedLabels.some((q) => box[0] < q[2] && q[0] < box[2] && box[1] < q[3] && q[1] < box[3])) break;
+        ly += 20;
+        if (ly > 985) { ly = y0 + 18; break; }
+      }
+      placedLabels.push([lx, ly - 15, lx + lw, ly + 4]);
+      people += `<g><rect x="${x0}" y="${y0}" width="${Math.max(x1-x0,1)}" height="${Math.max(y1-y0,1)}" fill="none" style="stroke:var(--ov-ink)" stroke-width="1" stroke-opacity="0.6"/><text x="${lx}" y="${ly}" style="fill:var(--ov-ink)" font-size="15">${esc(d.label)} ${(d.score||0).toFixed(2)}${tag}</text><title>${esc(d.label)}${seat}${tag}</title></g>`;
+    });
+    let beltsHtml = '';
+    (belts || []).forEach((b) => {
+      if (b.state === 'Detected' && b.segments) {
+        b.segments.forEach((s) => {
+          beltsHtml += `<line x1="${(s[0]*1000).toFixed(1)}" y1="${(s[1]*1000).toFixed(1)}" x2="${(s[2]*1000).toFixed(1)}" y2="${(s[3]*1000).toFixed(1)}" stroke="#22c55e" stroke-width="5"><title>belt strap (candidate) ${esc(b.seat_id || '')}</title></line>`;
+        });
+      } else if (b.state === 'Not detected' && b.roi) {
+        const r = b.roi;
+        beltsHtml += `<g><rect x="${(r[0]*1000).toFixed(0)}" y="${(r[1]*1000).toFixed(0)}" width="${((r[2]-r[0])*1000).toFixed(0)}" height="${((r[3]-r[1])*1000).toFixed(0)}" fill="none" stroke="#f97316" stroke-width="3" stroke-dasharray="8 5"/><title>no belt in clear view (candidate) ${esc(b.seat_id || '')}</title></g>`;
+      }
+    });
+    let poseHtml = '';
+    const skeletons = (pose && pose.skeletons) || [];
+    const EDGES = [[11,13],[13,15],[12,14],[14,16],[11,12],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
+    skeletons.forEach((sk) => {
+      const pts = sk.points || [];
+      const at = (i) => pts[i] && pts[i][2] >= 0.5 ? [(pts[i][0]*1000).toFixed(1), (pts[i][1]*1000).toFixed(1)] : null;
+      EDGES.forEach(([a, b]) => {
+        const pa = at(a), pb = at(b);
+        if (pa && pb) poseHtml += `<line x1="${pa[0]}" y1="${pa[1]}" x2="${pb[0]}" y2="${pb[1]}" stroke="#22d3ee" stroke-width="3"><title>pose ${esc(sk.seat || '')} (${sk.visible || 0} keypoints)</title></line>`;
+      });
+    });
+    let faceHtml = '';
+    const faces = (face && face.faces) || [];
+    faces.forEach((fc) => {
+      Object.entries(fc.dots || {}).forEach(([name, pt]) => {
+        faceHtml += `<circle cx="${(pt[0]*1000).toFixed(1)}" cy="${(pt[1]*1000).toFixed(1)}" r="6" fill="#f0abfc"><title>${esc(name)} ${esc(fc.seat || '')} blink ${fc.blink ?? '?'} jaw ${fc.jaw ?? '?'}</title></circle>`;
+      });
+    });
+    svg.innerHTML = `<g id="ly-seats">${seats}</g><g id="ly-gender">${genderLabels}</g><g id="ly-people">${people}</g><g id="ly-belts">${beltsHtml}</g><g id="ly-pose">${poseHtml}</g><g id="ly-face">${faceHtml}</g>`;
+    applyToggles();
+  }
+  let seatView = 'car';
+  try { seatView = localStorage.getItem('odc-seatview') || 'car'; } catch (e) {}
+  function refreshSeatMap() {
+    const box = document.getElementById('seatmap-live');
+    if (!box || typeof htmx === 'undefined') return;
+    htmx.ajax('GET', `/partials/seat-map?view=${seatView}`, '#seatmap-live');
+    syncSideFrame();
+  }
+  window.refreshSeatMap = refreshSeatMap;
+  function syncSideFrame() {
+    const img = document.getElementById('sidemap-frame');
+    if (!img) return;
+    if (seatView === 'poly') {
+      img.style.display = '';
+      img.src = `/frame.jpeg?v=${Date.now()}`;
+    } else {
+      img.style.display = 'none';
+      img.removeAttribute('src');
+    }
+  }
+  function paintSeatViewButtons() {
+    document.querySelectorAll('.seatview-btn').forEach((b) => {
+      b.style.borderColor = b.getAttribute('data-view') === seatView ? 'var(--accent)' : '';
+    });
+  }
+  function renderCrops(cropIds, detections, version) {
+    const box = document.getElementById('crops');
+    if (!box) return;
+    if (!cropIds || !cropIds.length) { box.innerHTML = '<span class="muted">No crops yet.</span>'; return; }
+    const v = (version != null) ? `?v=${version}` : '';
+    box.innerHTML = cropIds.slice(0, 6).map((id, i) => {
+      const d = (detections || [])[i];
+      const cap = d ? `${esc(d.label)} ${(d.score||0).toFixed(2)}` : esc(id);
+      return `<figure class="crop" title="Person crop ${esc(id)}${d ? ` — ${esc(d.label)} ${(d.score||0).toFixed(2)}` : ''}"><img src="/crop/${esc(id)}.jpeg${v}" alt="Crop ${cap}" loading="lazy"><figcaption>${cap}</figcaption></figure>`;
+    }).join('');
+  }
+  function renderCounts(counts) {
+    const box = document.getElementById('counts');
+    if (!box || !counts) return;
+    const cell = (label, val, color, tip) =>
+      `<div class="count" title="${tip}"><span>${label}</span><strong${color ? ` style="color:${color}"` : ''}>${val ?? 0}</strong></div>`;
+    box.innerHTML =
+      cell('Total', counts.total, '', 'Seats tracked in this session') +
+      cell('Empty candidates', counts.empty_candidates ?? counts.empty, 'var(--seat-empty)', 'Sustained clear-scene evidence; not a verified empty seat') +
+      cell('Occupied', counts.occupied, 'var(--seat-occupied)', 'Seats with occupied evidence') +
+      cell('Children detected', counts.children, 'var(--seat-child)', 'Seats with confirmed MiVOLO child evidence') +
+      cell('Possible child', counts.possible_children, 'var(--seat-child)', 'Unconfirmed age estimates in the child range; not a confirmed child classification') +
+      cell('Restraint candidates', counts.restraints, 'var(--seat-restraint)', 'Unverified chair, luggage, or specialist candidates; not confirmed child restraints') +
+      cell('Belt ?', counts.belt_unknown, '', 'Seats where belt state is undetermined') +
+      cell('Unknown', counts.unknown, '#9ca3af', 'Seats with weak evidence');
+  }
+  function maskSource(s) {
+    const p = s.precise;
+    if (p && p.masks && p.masks.length && Math.abs((s.frame_seq ?? 0) - (p.seq ?? -1)) <= 300) {
+      return {masks: p.masks, label: `masks: precise · #${p.seq}`};
+    }
+    return {masks: s.masks, label: 'masks: fast'};
+  }
+  function dmsCell(d) {
+    if (!d) return '–';
+    const f = [];
+    if (d.drowsy) f.push('DROW');
+    if (d.distracted) f.push('DIST');
+    if (d.phone) f.push('PHON');
+    if (d.yawning) f.push('YAWN');
+    return f.length ? f.join('/') : 'ok';
+  }
+  function renderSeatTable(rows) {
+    const wrap = document.getElementById('seat-state-list');
+    if (!wrap || !rows) return;
+    wrap.innerHTML = rows.length ? rows.map((r) => {
+      const name = esc(r.display_name || r.seat_id);
+      const presence = esc((r.presence || 'UNKNOWN').replaceAll('_', ' '));
+      const occupant = esc(r.occupant_category || 'unknown occupant');
+      const child = esc(r.child || 'Unknown');
+      const appearance = r.gender === 'APPARENT_MAN' ? 'M' : r.gender === 'APPARENT_WOMAN' ? 'F' : '—';
+      const agePrediction = (r.age_predictions || []).find((item) => item.age_years !== null);
+      const ageEstimate = agePrediction ? `${agePrediction.classification_category || agePrediction.age_category} · ${Number(agePrediction.age_years).toFixed(0)}y` : '—';
+      const childEvidence = r.child === 'Yes' ? 'Confirmed' : r.child_candidate ? 'Possible' : '—';
+      const reason = esc((r.reason_codes || []).slice(0, 2).join(', ') || 'No reason code');
+      const facts = [
+        ['Child', child], ['Child evidence', childEvidence], ['Restraint', r.restraint_candidate ? 'Candidate' : (r.restraint || 'Unknown')], ['Belt', r.belt || 'Unknown'],
+        ['Age', ageEstimate], ['Posture', r.posture || 'Unknown'],
+        ['Pose keypoints', r.pose || '–'], ['DMS', r.dms_text || '–'], ['M/F', appearance],
+      ].map(([label, value]) => {
+        const positive = value === 'Yes' && label === 'Child' ? 'child' : value === 'Yes' && label === 'Restraint' ? 'restraint' : '';
+        const reason = label === 'Child' ? r.child_reason : label === 'Child evidence' ? r.child_candidate_reason : label === 'Restraint' ? r.restraint_reason : label === 'Posture' ? r.posture_reason : '';
+        const detail = reason ? ` — ${reason}` : '';
+        return `<span class="seat-attribute" data-positive="${positive}" title="${label}: ${esc(value + detail)}"><small>${label}</small>${esc(value)}</span>`;
+      }).join('');
+      return `<button type="button" class="seat-state-item" data-seat="${esc(r.seat_id)}" aria-pressed="false" title="${name}; ${reason}"><span class="seat-state-head"><strong>${name}</strong><span class="pill">${presence}</span><span class="seat-state-value">${occupant}</span></span><span class="seat-attribute-grid">${facts}</span></button>`;
+    }).join('') : '<span class="muted">No seat observations yet.</span>';
+    const ev = document.getElementById('evidence');
+    if (ev) {
+      ev.innerHTML = rows.length ? rows.map((r) => {
+        const name = esc(r.display_name || r.seat_id);
+        const presence = esc((r.presence || 'UNKNOWN').replaceAll('_', ' '));
+        const confidence = r.confidence !== null && r.confidence !== undefined && Number.isFinite(Number(r.confidence)) ? ` · evidence ${Number(r.confidence).toFixed(2)}` : '';
+        const reasons = [
+          r.child_reason ? `Child: ${r.child_reason}` : '',
+          r.restraint_reason ? `Child seat: ${r.restraint_reason}` : '',
+          ...(r.reason_codes || []),
+        ].filter(Boolean).map((code) => `<span class="evidence-reason">${esc(code)}</span>`).join('') || '<span class="muted">No reason codes provided</span>';
+        const estimate = r.gender === 'APPARENT_MAN' ? 'M appearance estimate' : r.gender === 'APPARENT_WOMAN' ? 'F appearance estimate' : '';
+        const agePrediction = (r.age_predictions || []).find((item) => item.age_years !== null);
+        const age = agePrediction ? `Age estimate: ${agePrediction.age_years}y (${agePrediction.classification_category || agePrediction.age_category}; not calibrated)` : '';
+        const extra = [estimate ? `${estimate} · MiVOLO` : '', age].filter(Boolean).map((text) => `<span class="appearance-note">${esc(text)}</span>`).join('');
+        return `<article class="evidence-row"><div class="evidence-row-head"><strong>${name}</strong><span class="pill">${presence}</span><span class="muted">${confidence}</span></div>${extra}<div class="evidence-reasons">${reasons}</div></article>`;
+      }).join('') : '<span class="muted">No seat evidence available yet.</span>';
+    }
+  }
+  function renderGenderStatus(status) {
+    const el = document.getElementById('gender-status');
+    if (!el || !status) return;
+    el.textContent = status.message || 'Appearance estimate status unavailable';
+    el.title = status.detail || 'Optional visual appearance estimate; not verified sex or gender and never used for safety decisions.';
+    el.dataset.state = status.state || 'unknown';
+  }
+  function renderAlerts(alerts) {
+    const box = document.getElementById('alerts');
+    const count = document.getElementById('alert-count');
+    if (!box) return;
+    const list = alerts || [];
+    if (count) count.textContent = `${list.length}`;
+    box.innerHTML = list.length
+      ? list.slice(0, 8).map((a) => renderAlertItem(a)).join('') +
+        (list.length > 8 ? `<div class="alert-meta">+${list.length - 8} more active events</div>` : '')
+      : '<div class="alerts-empty">No active events.</div>';
+  }
+  function renderAlertItem(alert, recent = false) {
+    const severity = String(alert.severity || 'WARNING').toUpperCase();
+    const seatId = alert.seat_id || '';
+    const row = latestState && (latestState.seat_rows || []).find((item) => item.seat_id === seatId);
+    const seatLabel = row && row.display_name
+      ? row.display_name
+      : seatId.replace(/^seat_(\d+)$/, 'Seat $1').replaceAll('_', ' ');
+    const seat = seatId
+      ? `<button type="button" class="seat-link" data-seat="${esc(seatId)}">${esc(seatLabel)}</button>`
+      : '';
+    const frame = alert.frame_seq != null ? `<span>Frame ${esc(alert.frame_seq)}</span>` : '';
+    const timeValue = alert.raised_at || alert.at || '';
+    const time = timeValue ? `<time>${esc(String(timeValue).slice(11, 19))}</time>` : '';
+    const kind = esc(String(alert.kind || 'Event').replaceAll('_', ' '));
+    const message = esc(alert.message || '');
+    const meta = [seat, frame, recent ? time : ''].filter(Boolean).join('');
+    return `<article class="alert-item" data-severity="${esc(severity)}" data-seat="${esc(seatId)}" data-frame="${alert.frame_seq ?? ''}">` +
+      `<div class="alert-top"><strong>${esc(severity)}</strong><span class="alert-kind">${kind}</span></div>` +
+      (message ? `<div class="alert-message">${message}</div>` : '') +
+      (meta ? `<div class="alert-meta">${meta}</div>` : '') + '</article>';
+  }
+  async function refreshRecentAlerts() {
+    try {
+      const r = await fetch('/api/alerts', {cache: 'no-store'});
+      if (!r.ok) return;
+      const j = await r.json();
+      const wrap = document.getElementById('alerts-recent-wrap');
+      const box = document.getElementById('alerts-recent');
+      if (!wrap || !box) return;
+      const recent = (j.recent || []).slice(0, 5);
+      if (!recent.length) { wrap.style.display = 'none'; return; }
+      wrap.style.display = '';
+      box.innerHTML = recent.map((a) => renderAlertItem(a, true)).join('');
+    } catch (e) {}
+  }
+  async function refreshEventHistory() {
+    const box = document.getElementById('event-history');
+    if (!box) return;
+    const sessionId = latestState && latestState.snapshot && latestState.snapshot.session_id;
+    const query = sessionId ? `?session=${encodeURIComponent(sessionId)}&limit=30` : '?limit=30';
+    try {
+      const response = await fetch(`/api/events${query}`, {cache:'no-store'});
+      if (!response.ok) throw new Error(`event request ${response.status}`);
+      const events = await response.json();
+      if (!Array.isArray(events)) throw new Error('invalid event response');
+      if (!events.length) { box.innerHTML = '<div class="alerts-empty">No cabin state changes recorded yet.</div>'; return; }
+      box.innerHTML = events.slice(0, 10).map((event) => {
+        const kind = esc(String(event.event_type || 'Cabin event').replaceAll('_', ' ').toLowerCase());
+        const seat = event.display_name || event.seat_id || 'Cabin';
+        const state = [event.prior_state, event.new_state].filter(Boolean).map(esc).join(' → ');
+        const frame = event.frame_seq == null ? '' : `Frame ${esc(event.frame_seq)}`;
+        const at = event.occurred_at ? esc(String(event.occurred_at).slice(11, 19)) : '';
+        const evidence = event.evidence ? `<div class="alert-message">${esc(event.evidence)}</div>` : '';
+        const meta = [frame, at].filter(Boolean).join(' · ');
+        return `<article class="alert-item event-item" data-severity="${esc(event.severity || 'INFO')}"><div class="alert-top"><strong>${esc(seat)}</strong><span class="alert-kind">${kind}</span></div>${state ? `<div>${state}</div>` : ''}${evidence}${meta ? `<div class="alert-meta">${meta}</div>` : ''}</article>`;
+      }).join('');
+    } catch (error) {
+      box.innerHTML = `<div class="alerts-empty">Cabin event history unavailable: ${esc(error.message)}</div>`;
+    }
+  }
+  function renderAnalytics(a) {
+    const el = document.getElementById('analytics');
+    if (!el) return;
+    if (!a || !a.percentages) { el.textContent = 'No analytics yet.'; return; }
+    const p = a.percentages;
+    el.textContent = `Occ ${p.occupied ?? 0}% · Empty ${p.empty ?? 0}% · Unres ${p.unresolved ?? 0}% · ` +
+      `Kids/occ ${p.children_of_occupied ?? 0}% · Belt status ${p.belt_determined ?? 0}%`;
+    el.title = 'Session analytics: share occupied / empty candidates / unresolved, children of occupied, belt status evidence';
+    const ev = document.getElementById('evidence');
+    if (ev && a.notes && a.notes.length) {
+      ev.innerHTML += a.notes.map((n) => `<div class="muted">note: ${esc(n)}</div>`).join('');
+    }
+  }
+  function renderDetList(detections, thr) {
+    const el = document.getElementById('det-list');
+    if (!el) return;
+    if (!detections || !detections.length) {
+    el.textContent = `No detections at or above ${thr} confidence.`;
+      return;
+    }
+    el.textContent = detections.slice(0, 6).map((d) => `${d.label} ${(d.score||0).toFixed(2)}${d.tag ? ' · ' + d.tag : ''}`).join(' · ') +
+      (detections.length > 6 ? ` · +${detections.length - 6} more` : '') +
+      ` · min score ${thr}`;
+  }
+  function clearForNewSession() {
+    clearSelectedPreview();
+    const svg = document.getElementById('live-overlay');
+    if (svg) svg.innerHTML = '';
+    const box = document.getElementById('seatmap-live');
+    if (box) box.innerHTML = '<div class="empty" style="padding:8px">Mapping seats…</div>';
+    const wrap = document.getElementById('seat-state-list');
+    if (wrap) wrap.innerHTML = '<span class="muted">Waiting for first seat observations…</span>';
+    const counts = document.getElementById('counts');
+    if (counts) counts.innerHTML = '<span class="muted">New video — counts restart here.</span>';
+    const ana = document.getElementById('analytics');
+    if (ana) ana.textContent = 'No analytics yet.';
+    const recent = document.getElementById('alerts-recent-wrap');
+    if (recent) recent.style.display = 'none';
+    const eventHistory = document.getElementById('event-history');
+    if (eventHistory) eventHistory.innerHTML = '<div class="alerts-empty">Waiting for cabin state changes…</div>';
+    renderAlerts([]);
+    const crops = document.getElementById('crops');
+    if (crops) crops.innerHTML = '<span class="muted">No crops yet.</span>';
+    const ev = document.getElementById('evidence');
+    if (ev) ev.innerHTML = '<span class="muted">New video — seat evidence will appear with the first observations.</span>';
+    const hist = document.getElementById('history');
+    if (hist) hist.innerHTML = '<span class="muted">No history yet.</span>';
+    pinnedFrameSeq = null;
+    const returnLive = document.getElementById('return-live');
+    if (returnLive) returnLive.hidden = true;
+    const kind = document.getElementById('view-kind');
+    if (kind) kind.textContent = 'LIVE';
+    lastPolygons = null;
+  }
+  let selectedSeat = null;
+  function highlightSeat(seat) {
+    selectedSeat = seat || null;
+    document.querySelectorAll('#seatmap-live .seat, #live-overlay .seat-overlay').forEach((el) => {
+      el.classList.toggle('selected', !!selectedSeat && el.getAttribute('data-seat') === selectedSeat);
+    });
+    document.querySelectorAll('#seat-state-list [data-seat]').forEach((el) => {
+      const on = !!selectedSeat && el.getAttribute('data-seat') === selectedSeat;
+      if (el.matches('button')) el.setAttribute('aria-pressed', on ? 'true' : 'false');
+      el.classList.toggle('selected', on);
+    });
+  }
+  async function applyState(s) {
+    if (!s || typeof s.version !== 'number') return;
+    latestState = s;
+    if (s.snapshot && typeof s.snapshot.running === 'boolean' && !sessionActionBusy) updateSessionAction(s.snapshot.running);
+    renderGenderStatus(s.gender_status);
+    if (s.version === lastVersion) return;
+    lastVersion = s.version;
+    if (s.frame_seq != null) lastFrameSeq = s.frame_seq;
+    const session = s.snapshot && s.snapshot.session_id;
+    if (session && session !== lastSession) {
+      lastSession = session;
+      clearForNewSession();
+    }
+    const badge = document.getElementById('live-badge');
+    if (badge && s.badge) badge.textContent = s.badge;
+    const orientation = document.getElementById('orientation-badge');
+    const requestedOrientation = document.getElementById('f-orientation')?.value || 'UNKNOWN';
+    if (orientation) {
+      const inferred = s.orientation && s.orientation !== 'UNKNOWN' ? s.orientation : '';
+      orientation.textContent = requestedOrientation === 'UNKNOWN' ? 'Steering: Auto' : `Steering: ${requestedOrientation}`;
+      orientation.title = requestedOrientation === 'UNKNOWN'
+        ? `Automatic steering mode${inferred ? ` · probe inferred ${inferred}` : ' · side not resolved by probe'}`
+        : `Steering side explicitly set to ${requestedOrientation}`;
+    }
+    const mapMeta = document.getElementById('map-meta');
+    if (mapMeta && s.seat_rows) {
+      mapMeta.textContent = `{{ layout.display_name or layout.version }} · steering ${requestedOrientation === 'UNKNOWN' ? 'Auto' : requestedOrientation} · ${s.seat_rows.length} seats`;
+    }
+    const meta = document.getElementById('live-meta');
+    if (meta && s.snapshot && !(selectedPreview && !s.snapshot.running)) {
+      const latestSummary = `latest #${s.frame_seq ?? '?'} · ${s.frame_ts ? s.frame_ts.slice(11, 19) : '—'} · proc ${s.snapshot.frames_processed} · drop ${s.snapshot.frames_dropped} · ${(s.snapshot.last_latency_ms ?? 0).toFixed(0)}ms · general threshold ${(s.snapshot.threshold ?? 0).toFixed(2)} · db ${s.snapshot.db_healthy ? 'ok' : 'DOWN'}`;
+      meta.textContent = pinnedFrameSeq === null ? latestSummary : `Pinned #${pinnedFrameSeq} · processing continues · ${latestSummary}`;
+      meta.title = `Frame #${s.frame_seq ?? '?'} at ${s.frame_ts ?? '—'} — processed ${s.snapshot.frames_processed}, dropped ${s.snapshot.frames_dropped}, last latency ${(s.snapshot.last_latency_ms ?? 0).toFixed(0)} ms, threshold ${(s.snapshot.threshold ?? 0).toFixed(2)}, database ${s.snapshot.db_healthy ? 'healthy' : 'DOWN'}`;
+    }
+    const img = document.getElementById('live-frame');
+    if (img) {
+      if (selectedPreview && !(s.snapshot && s.snapshot.running)) {
+        // Keep the selected source's first-frame preview visible while idle,
+        // even if the hub still retains a previous session's last frame.
+      } else if (s.has_frame) {
+        img.style.display = '';
+        img.dataset.sourcePreview = 'false';
+        const nof = document.getElementById('no-frame');
+        if (nof) nof.style.display = 'none';
+        const url = pinnedFrameSeq === null
+          ? `/frame.jpeg?v=${s.version}`
+          : `/frame.jpeg?seq=${encodeURIComponent(pinnedFrameSeq)}`;
+        if (img.getAttribute('src') !== url) img.setAttribute('src', url);
+      } else {
+        img.style.display = 'none';
+        img.removeAttribute('src');
+        const nof = document.getElementById('no-frame');
+        if (nof) { nof.style.display = ''; nof.textContent = 'Select a replay clip to preview its first frame.'; }
+      }
+    }
+    const src = maskSource(s);
+    if (pinnedFrameSeq === null) renderOverlay(s.detections, src.masks, s.seat_polygons, s.belt_overlays, s.pose, s.face);
+    const msrc = document.getElementById('mask-src');
+    if (msrc) msrc.textContent = src.label;
+    renderCrops(s.crop_ids, s.detections, s.version);
+    renderCounts(s.counts);
+    renderSeatTable(s.seat_rows);
+    highlightSeat(selectedSeat);
+    renderAnalytics(s.analytics);
+    renderAlerts(s.alerts);
+    const thr = (s.snapshot && s.snapshot.threshold != null) ? s.snapshot.threshold.toFixed(2) : '?';
+    renderDetList(s.detections, thr);
+    setDot('live', 'streaming');
+    reconnectDelay = 1000;
+  }
+  async function poll() {
+    try {
+      // Single incremental snapshot: frame + detections + masks + seats.
+      // /api/live/state is the SSE fallback; the stream below triggers it.
+      const r = await fetch('/api/live/state', {cache: 'no-store'});
+      if (!r.ok) throw new Error('poll ' + r.status);
+      await applyState(await r.json());
+      setDot('live', 'streaming (polling)');
+    } catch (e) {
+      setDot('down', 'connection failed — retrying');
+    }
+  }
+  function connectSSE() {
+    try { if (evtSource) evtSource.close(); } catch (e) {}
+    try {
+      // /sse/stream pushes version ticks; each tick pulls one state snapshot.
+      evtSource = new EventSource('/sse/stream');
+      evtSource.onmessage = async () => { await poll(); };
+      evtSource.onerror = () => {
+        setDot('down', 'stream interrupted — auto-recovery');
+        try { evtSource.close(); } catch (e) {}
+        setTimeout(connectSSE, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 15000);
+      };
+      evtSource.onopen = () => setDot('live', 'streaming (SSE)');
+    } catch (e) {
+      setTimeout(connectSSE, reconnectDelay);
+    }
+  }
+  async function refreshHistory() {
+    try {
+      const r = await fetch('/api/frames/history', {cache: 'no-store'});
+      if (!r.ok) return;
+      const j = await r.json();
+      const box = document.getElementById('history');
+      if (!box) return;
+      if (!j.frames || !j.frames.length) { box.innerHTML = '<span class="muted">No history yet.</span>'; return; }
+      const wasAtEnd = box.scrollWidth - box.clientWidth - box.scrollLeft < 36;
+      const frames = j.frames.slice(-12);
+      const signature = frames.map((h) => `${h.seq}:${h.captured_at}`).join('|');
+      if (signature === historySignature) {
+        box.querySelectorAll('[data-seq]').forEach((button) => {
+          button.setAttribute('aria-pressed', Number(button.dataset.seq) === pinnedFrameSeq ? 'true' : 'false');
+        });
+        return;
+      }
+      historySignature = signature;
+      box.innerHTML = frames.map((h) => {
+        const seq = Number(h.seq);
+        const capturedAt = String(h.captured_at || '');
+        const time = capturedAt.slice(11, 19) || '—';
+        const selected = pinnedFrameSeq === seq;
+        const imageUrl = `/frame-thumb.jpeg?seq=${seq}&v=${encodeURIComponent(capturedAt)}`;
+        return `<button type="button" class="ghost hist-btn" data-seq="${seq}" aria-pressed="${selected}" title="Inspect frame ${seq} at ${time}; live processing continues"><img src="${imageUrl}" alt="Actual processed frame ${seq}" loading="lazy" decoding="async"><strong>Frame ${seq}</strong><small>${time} · ${Number(h.n_detections) || 0} detections</small></button>`;
+      }).join('');
+      box.querySelectorAll('img').forEach((img) => img.addEventListener('error', () => {
+        img.alt = 'Frame preview unavailable';
+        img.classList.add('preview-unavailable');
+      }, {once: true}));
+      if (pinnedFrameSeq === null && wasAtEnd) box.scrollLeft = box.scrollWidth;
+    } catch (e) {}
+  }
+  async function pinFrame(seq) {
+    const numericSeq = Number(seq);
+    if (!Number.isInteger(numericSeq)) return;
+    pinnedFrameSeq = numericSeq;
+    const overlay = document.getElementById('live-overlay');
+    if (overlay) overlay.innerHTML = '';
+    const img = document.getElementById('live-frame');
+    const kind = document.getElementById('view-kind');
+    const returnLive = document.getElementById('return-live');
+    if (img) { img.src = `/frame.jpeg?seq=${encodeURIComponent(numericSeq)}`; img.style.display = ''; }
+    if (kind) kind.textContent = `FRAME #${numericSeq}`;
+    if (returnLive) returnLive.hidden = false;
+    document.querySelectorAll('#history [data-seq]').forEach((button) => {
+      button.setAttribute('aria-pressed', Number(button.dataset.seq) === numericSeq ? 'true' : 'false');
+    });
+    const detList = document.getElementById('det-list');
+    if (detList) detList.textContent = 'Loading detections for this frame…';
+    try {
+      const response = await fetch(`/api/frames/live-evidence?seq=${encodeURIComponent(numericSeq)}`, {cache: 'no-store'});
+      if (!response.ok) throw new Error(`evidence request ${response.status}`);
+      const evidence = await response.json();
+      if (pinnedFrameSeq !== numericSeq) return;
+      const state = latestState || {};
+      renderOverlay(evidence.detections, evidence.masks, [], evidence.belt_overlays,
+        evidence.pose, evidence.face);
+      renderDetList(evidence.detections, state.snapshot?.threshold?.toFixed(2) ?? '?');
+      if (!(evidence.detections || []).length && detList) {
+        detList.textContent = 'No detections were recorded for this frame.';
+      }
+    } catch (error) {
+      if (pinnedFrameSeq !== numericSeq) return;
+      if (detList) detList.textContent = 'Detection overlays unavailable for this buffered frame.';
+      console.warn('Could not load frame-matched inference evidence:', error);
+    }
+  }
+  function returnToLive() {
+    pinnedFrameSeq = null;
+    const returnLive = document.getElementById('return-live');
+    const kind = document.getElementById('view-kind');
+    const img = document.getElementById('live-frame');
+    if (returnLive) returnLive.hidden = true;
+    if (kind) kind.textContent = 'LIVE';
+    if (img && lastVersion >= 0) { img.src = `/frame.jpeg?v=${lastVersion}`; img.style.display = ''; }
+    document.querySelectorAll('#history [data-seq]').forEach((button) => button.setAttribute('aria-pressed', 'false'));
+    if (latestState) {
+      const source = maskSource(latestState);
+      renderOverlay(latestState.detections, source.masks, latestState.seat_polygons,
+        latestState.belt_overlays, latestState.pose, latestState.face);
+    }
+    poll();
+  }
+  async function askLocalMistral() {
+    const input = document.getElementById('assistant-prompt');
+    const button = document.getElementById('assistant-ask');
+    const status = document.getElementById('assistant-status');
+    const answer = document.getElementById('assistant-answer');
+    const prompt = input ? input.value.trim() : '';
+    if (!prompt) {
+      if (status) status.textContent = 'Enter a question first.';
+      if (input) input.focus();
+      return;
+    }
+    const addMessage = (kind, message) => {
+      if (!answer) return null;
+      if (answer.children.length === 0 && answer.textContent.trim() === 'Ask a question about this session.') answer.textContent = '';
+      const item = document.createElement('div');
+      item.className = `assistant-message ${kind}`;
+      item.textContent = message;
+      answer.appendChild(item);
+      answer.scrollTop = answer.scrollHeight;
+      return item;
+    };
+    if (button) button.disabled = true;
+    if (status) status.textContent = 'Asking local Mistral…';
+    addMessage('user', prompt);
+    const responseMessage = addMessage('model', 'PLOMID is waiting for a response from local Mistral…');
+    try {
+      const r = await fetch('/api/assistant/ask', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({prompt, seat_id: selectedSeat})
+      });
+      const payload = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(payload.detail || 'Local Mistral is unavailable.');
+      if (responseMessage) responseMessage.textContent = payload.answer || 'The local model returned no answer.';
+      if (status) status.textContent = `${payload.provider || 'ollama'} · ${payload.model || 'mistral'} · user-triggered`;
+    } catch (err) {
+      if (responseMessage) responseMessage.textContent = `No answer: ${err.message}. Start Ollama and pull the configured model if required.`;
+      if (status) status.textContent = 'Assistant unavailable';
+    } finally {
+      if (button) button.disabled = false;
+      if (input) { input.value = ''; input.focus(); }
+    }
+  }
+  function setAssistantOpen(open) {
+    const panel = document.getElementById('assistant-panel');
+    const toggle = document.getElementById('assistant-toggle');
+    const input = document.getElementById('assistant-prompt');
+    const close = document.getElementById('assistant-close');
+    if (!panel || !toggle) return;
+    panel.hidden = !open;
+    panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open && input) input.focus();
+    if (!open && close) toggle.focus();
+  }
+  document.addEventListener('click', (e) => {
+    const viewBtn = e.target.closest && e.target.closest('.seatview-btn');
+    if (viewBtn) {
+      seatView = viewBtn.getAttribute('data-view') || 'car';
+      try { localStorage.setItem('odc-seatview', seatView); } catch (err) {}
+      paintSeatViewButtons();
+      refreshSeatMap();
+      return;
+    }
+    const seatG = e.target.closest && e.target.closest('#seatmap-live .seat');
+    if (seatG) {
+      const seat = seatG.getAttribute('data-seat');
+      highlightSeat(seat);
+      seatG.dispatchEvent(new CustomEvent('seat-pick', {bubbles: true, detail: {seat}}));
+      return;
+    }
+    const seatLink = e.target.closest && e.target.closest('.seat-link');
+    if (seatLink) {
+      const seat = seatLink.getAttribute('data-seat');
+      highlightSeat(seat);
+      document.body.dispatchEvent(new CustomEvent('seat-pick', { detail: { seat } }));
+      const item = seatLink.closest('.alert-item');
+      if (item) {
+        item.style.outline = '1px solid var(--accent)';
+        setTimeout(() => { item.style.outline = ''; }, 1200);
+      }
+      return;
+    }
+    const seatSummary = e.target.closest && e.target.closest('#seat-state-list [data-seat]');
+    if (seatSummary) {
+      const seat = seatSummary.getAttribute('data-seat');
+      highlightSeat(seat);
+      document.body.dispatchEvent(new CustomEvent('seat-pick', { detail: { seat } }));
+      return;
+    }
+    const row = e.target.closest && e.target.closest('#seat-table tr[data-seat]');
+    if (row) {
+      const seat = row.getAttribute('data-seat');
+      highlightSeat(seat);
+      document.body.dispatchEvent(new CustomEvent('seat-pick', { detail: { seat } }));
+    }
+    const frameButton = e.target.closest && e.target.closest('#history .hist-btn');
+    if (frameButton) { pinFrame(frameButton.getAttribute('data-seq')); return; }
+    if (e.target.closest && e.target.closest('#assistant-toggle')) {
+      const toggle = document.getElementById('assistant-toggle');
+      setAssistantOpen(toggle && toggle.getAttribute('aria-expanded') !== 'true');
+      return;
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!(e.key === 'Enter' || e.key === ' ')) return;
+    const seat = e.target.closest && e.target.closest('#seatmap-live .seat[role="button"]');
+    if (!seat) return;
+    e.preventDefault();
+    const seatId = seat.getAttribute('data-seat');
+    highlightSeat(seatId);
+    document.body.dispatchEvent(new CustomEvent('seat-pick', {detail: {seat: seatId}}));
+  });
+  document.body.addEventListener('seat-pick', (e) => {
+    if (e.detail && e.detail.seat) highlightSeat(e.detail.seat);
+  });
+  document.body.addEventListener('seat-inspector-close', () => { selectedSeat = null; highlightSeat(null); });
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.id && e.target.id.startsWith('tgl-')) {
+      applyToggles();
+      if (e.target.id === 'tgl-gender' && latestState && pinnedFrameSeq === null) {
+        const source = maskSource(latestState);
+        renderOverlay(latestState.detections, source.masks, latestState.seat_polygons,
+          latestState.belt_overlays, latestState.pose, latestState.face);
+      }
+    }
+  });
+  const assistantForm = document.getElementById('assistant-form');
+  if (assistantForm) assistantForm.addEventListener('submit', (e) => { e.preventDefault(); askLocalMistral(); });
+  const assistantInput = document.getElementById('assistant-prompt');
+  if (assistantInput) assistantInput.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); askLocalMistral(); }
+  });
+  const closeAssistant = document.getElementById('assistant-close');
+  if (closeAssistant) closeAssistant.addEventListener('click', () => setAssistantOpen(false));
+  const returnLiveButton = document.getElementById('return-live');
+  if (returnLiveButton) returnLiveButton.addEventListener('click', returnToLive);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('assistant-panel')?.hidden) setAssistantOpen(false);
+  });
+  const frameImg = document.getElementById('live-frame');
+  if (frameImg) frameImg.addEventListener('load', fitStage);
+  syncToggleBoxes();
+  applyToggles();
+  paintSeatViewButtons();
+{% if not session %}
+  refreshSeatMap();
+  setInterval(refreshSeatMap, 3000);
+{% endif %}
+  try {
+    const want = localStorage.getItem('odc-layout');
+    if (want) {
+      const apply = () => {
+        const sel = document.getElementById('f-layout');
+        if (sel && [...sel.options].some((o) => o.value === want)) {
+          sel.value = want;
+          localStorage.removeItem('odc-layout');
+          const st = document.getElementById('service-status');
+          if (st) st.textContent = `Calibrated layout “${want}” selected — press Start.`;
+        } else {
+          setTimeout(apply, 500);
+        }
+      };
+      setTimeout(apply, 800);
+    }
+  } catch (e) {}
+  connectSSE();
+  pollTimer = setInterval(poll, 1000);
+  setInterval(refreshHistory, 3000);
+  setInterval(refreshRecentAlerts, 5000);
+  setInterval(refreshEventHistory, 5000);
+  poll();
+  refreshHistory();
+  refreshRecentAlerts();
+  refreshEventHistory();
+})();
+</script>
+{% endblock %}
+
+{% block inspector_extra %}
+<div class="inspector-secondary">
+  <section class="inspector-section" aria-labelledby="cabin-state-title">
+    <h2 id="cabin-state-title">Cabin state</h2>
+    <div id="counts" class="counts" aria-live="polite"><span class="muted">Waiting for session data.</span></div>
+    <div id="analytics" class="muted">No analytics yet.</div>
+    <div id="seat-state-list" class="seat-state-list" aria-label="Seat observations"><span class="muted">No seat observations yet.</span></div>
+  </section>
+  <section id="alerts-card" class="inspector-section" aria-labelledby="events-title">
+    <h2 id="events-title">Active alerts <span id="alert-count" class="pill">0</span></h2>
+    <div id="alerts" aria-live="polite"><span class="muted">No active rule-based alerts right now.</span></div>
+    <div id="alerts-recent-wrap" style="display:none;margin-top:8px">
+      <h3 class="muted" style="font-size:11px;margin:8px 0 4px">Recent alerts</h3>
+      <div id="alerts-recent"></div>
+    </div>
+    <h3 class="muted" style="font-size:11px;margin:12px 0 4px">Recent cabin events</h3>
+    <div id="event-history" aria-live="polite"><div class="alerts-empty">Waiting for cabin state changes…</div></div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,277 @@
+{
+  "video": "footage/S2_belt_up.mp4",
+  "review_date": "2026-10-24",
+  "review_method": "One manual reviewer re-reviewed all 54 sampled source frames without prediction overlays, including enlarged source-resolution crops. The initial annotation incorrectly marked frames after the belt-fastening action as absent; webbing remains visible across the torso through the final sampled frame. Visible means webbing is visually present across/in front of the driver torso; it does not mean correctly fastened. Frames 1, 13 and 25 are absent-assessable. One reviewer; labels are for strap visibility only.",
+  "frame_annotations": {
+    "1": {
+      "driver": {
+        "belt": "absent-assessable"
+      }
+    },
+    "13": {
+      "driver": {
+        "belt": "absent-assessable"
+      }
+    },
+    "25": {
+      "driver": {
+        "belt": "absent-assessable"
+      }
+    },
+    "37": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "49": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "61": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "73": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "85": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "97": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "109": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "121": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "133": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "145": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "157": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "169": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "181": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "193": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "205": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "217": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "229": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "241": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "253": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "265": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "277": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "289": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "301": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "313": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "325": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "337": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "349": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "361": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "373": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "385": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "397": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "409": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "421": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "433": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "445": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "457": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "469": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "481": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "493": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "505": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "517": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "529": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "541": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "553": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "565": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "577": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "589": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "601": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "613": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "625": {
+      "driver": {
+        "belt": "visible"
+      }
+    },
+    "637": {
+      "driver": {
+        "belt": "visible"
+      }
+    }
+  }
+}

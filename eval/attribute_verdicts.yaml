@@ -1,0 +1,47 @@
+# Phase 7 attribute verdicts (human-written 2026-10-13 from eval/attribute_evidence.json)
+# Evidence: 8 clips x 6 frames x 10 gd-v1 prompts, box 0.35 / text 0.25.
+# Verdict scale: SUPPORTED_FOR_DEMO | PROVISIONAL | UNSUPPORTED | UNEVALUATED.
+
+child_seat_any:
+  verdict: UNSUPPORTED
+  evidence: "recall 1.0 on F1/C1/C2 AND false-fire 1.0 on E1(empty!),S1,S2,R1, 0.5 N1"
+  fatal_example: "E1 empty BMW: 'rear facing infant car seat' 0.502 on the empty seat"
+  true_example: "C1 baby seat 0.428 — LOWER than E1's false 0.502; no separable threshold"
+  consequence: "CRS tags stay PROVISIONAL placeholders; disambiguation needs SVIRO-style seat-vs-CRS eval (Phase 9)"
+
+belt_any:
+  verdict: UNSUPPORTED
+  evidence: "S1 1.0 / S2 0.5 present BUT E1 1.0, C2 1.0, F1 0.83 absent-fire"
+  fatal_example: "E1 empty cabin fires belt prompts at ~0.48 — seat seams read as belts"
+  consequence: "belt stays CANDIDATE via pose-geometry + OEM buckle fusion only; camera never decides"
+
+small_occupant:
+  verdict: PROVISIONAL
+  evidence: "mechanism live (temporal windowed vote, 3-vote gate); F1: adults LARGE/twins UNKNOWN, baby abstains (track drift); R1 distant adults read SMALL (geometry-sensitive, documented limit); C2 big child reads LARGE (correct abstention-or-large, never SMALL-wrong)"
+  consequence: "usable only in close-up calibrated geometries; reliable child/adult separation awaits CRS-context fusion (R15/SVIRO)"
+
+belt_misuse:
+  verdict: UNEVALUATED
+  evidence: "no misuse footage in set; spurious fires on F1/C2/S2 noted"
+  consequence: "needs synthetic misuse renders (Anyverse/SKY) or staged actor clip"
+
+object_bag:
+  verdict: UNEVALUATED
+  evidence: "O2 clip not downloaded; no positive in set"
+  consequence: "COCO luggage classes (RT-DETR) remain the object source meanwhile"
+
+blanket:
+  verdict: UNEVALUATED
+  evidence: "no blanket footage; spurious fires on S1 noted"
+  consequence: "blanket stays an occlusion-cause hypothesis, not a detector"
+
+person_via_grounding:
+  verdict: PROVISIONAL
+  evidence: "F1/R1/S2 1.0 BUT N1 night 0.17 miss; E1/S1 1.0 empty-fire"
+  consequence: "person evidence stays RT-DETR's job; grounding person prompt retired from product path"
+
+method_notes:
+  - "Box/text thresholds 0.35/0.25 (repo defaults); sweeping them cannot fix overlapping score bands"
+  - "Full-frame mining; seat-ROI variant recorded as R15 follow-up (unlikely to fix seat-vs-CRS confusion)"
+  - "CLIP engineering signal (S1->belt 1.0, C2->seat 0.99, E1->empty 0.94, n=3 frames): second-opinion scorer only, disabled by default, LAION terms flagged"
+  - "No training, no weight writes anywhere (guard test enforced); checkpoint sha verified"

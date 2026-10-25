@@ -1,0 +1,17 @@
+{
+  "model_id": "grounding-dino-swint-ogc",
+  "family": "grounding-dino",
+  "code_repo": "https://github.com/IDEA-Research/GroundingDINO",
+  "code_revision": "856dde20aee659246248e20734ef9ba5214f5e44",
+  "code_license": "Apache-2.0",
+  "checkpoint_url": "https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth",
+  "checkpoint_size": 693997677,
+  "checkpoint_sha256": "3b3ca2563c77c69f651d7bd133e97139c186df06231157a64c507099c52bc799",
+  "weights_license": "Apache-2.0 (checkpoint file) — LINEAGE TAINTED for commercial redistribution (O365/GoldG/Cap4M/OpenImages/RefCOCO); eval-only use",
+  "dataset_terms": "O365+GoldG+Cap4M+OpenImages+RefCOCO (academic-only lineage for O365)",
+  "approved_for_commercial_use": false,
+  "approval_evidence": "code LICENSE Apache-2.0 verified; checkpoint lineage tainted — eval/research only, never distributed",
+  "input_profile": "RGB ~800px longest side (repo default)",
+  "runtime_profile": "torch-mps-cpu-fallback (no ONNX: BERT tower + deformable attn)",
+  "role": "offline ROI miner only — never onboard, never real-time (D: gd-v1 prompts)"
+}

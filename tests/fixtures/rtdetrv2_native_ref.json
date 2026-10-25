@@ -1,0 +1,9 @@
+{
+ "source": "transformers RTDetrV2ForObjectDetection + AutoImageProcessor, torch MPS",
+ "checkpoint": "PekingU/rtdetrv2-s-r18vd@56509617",
+ "torch": "2.14.1",
+ "transformers": "5.19.0",
+ "frames": "footage/F1_family_ride.mp4 first 3 sequential reads",
+ "generated": "2026-10-13",
+ "regenerate": "only alongside model/checkpoint/preprocess changes, then re-freeze + review"
+}

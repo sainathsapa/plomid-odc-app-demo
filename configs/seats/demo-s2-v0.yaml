@@ -1,0 +1,9 @@
+# Single-zone layout for footage/S2_belt_up.mp4 — demo-s2-v0.
+# Woman driver-side right. APPROXIMATE. Normalized 0..1, 1920x1080.
+camera_profile: driver-side-s2
+version: demo-s2-v0
+seats:
+  - seat_id: driver
+    polygon: [[0.32, 0.05], [1.0, 0.05], [1.0, 1.0], [0.32, 1.0]]
+    camera_profile: driver-side-s2
+    version: demo-s2-v0

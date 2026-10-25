@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block main %}
+<div class="page-head" title="Fleet rollups: aggregate event and state data only — no raw media ever leaves a vehicle">
+<div>
+<p class="eyebrow">Fleet · Rollups</p>
+<h1>Fleet — {{ sessions|length }} sessions</h1>
+<p class="sub">Aggregate event/state data only — no raw media ever leaves a vehicle. Rollups and criticals, nothing identifying.</p>
+</div>
+</div>
+<div class="card" title="Presence rollup across recorded sessions">
+<h2>Presence rollup</h2>
+<p class="muted">Aggregate event/state data only — no raw media ever leaves a vehicle.
+Privacy contract: rollups and criticals, nothing identifying.</p>
+{% if rollup %}
+<table class="data">
+<tr><th>Presence</th><th>Seats</th></tr>
+{% for presence, count in rollup.items() %}
+<tr><td><span class="pill">{{ presence }}</span></td><td>{{ count }}</td></tr>
+{% endfor %}
+</table>
+{% else %}
+<div class="empty">No seat states recorded yet.</div>
+{% endif %}
+</div>
+<div class="card">
+<h2>Sessions</h2>
+{% if sessions %}
+<table class="data">
+<tr><th>Session</th><th>Camera</th><th>Status</th><th>Started</th><th></th></tr>
+{% for s in sessions %}
+<tr><td><code>{{ s.session_id }}</code></td><td>{{ s.camera_id }}</td>
+<td>{{ s.status }}</td><td>{{ s.started_at }}</td>
+<td><a href="/timeline?session={{ s.session_id }}">timeline</a></td></tr>
+{% endfor %}
+</table>
+{% else %}
+<div class="empty">No sessions recorded yet.</div>
+{% endif %}
+</div>
+<div class="card">
+<h2>Critical events</h2>
+{% if criticals %}
+<table class="data">
+<tr><th>Event</th><th>Type</th><th>Seat</th><th>Occurred</th></tr>
+{% for e in criticals %}
+<tr><td><code>{{ e.event_id }}</code></td><td>{{ e.event_type.value }}</td>
+<td>{{ e.seat_id }}</td><td>{{ e.occurred_at }}</td></tr>
+{% endfor %}
+</table>
+{% else %}
+<div class="empty">No critical events — nothing unattended, nothing degraded to critical.</div>
+{% endif %}
+</div>
+{% endblock %}

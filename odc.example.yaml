@@ -1,0 +1,17 @@
+# ODC example config — no secrets. DSN via ODC_DSN env only.
+app: plomid-odc
+env: dev
+mode: REPLAY
+build_version: 0.1.0
+camera:
+  camera_id: cabin0
+  source: replay
+  path: footage/F1_family_ride.mp4
+  width: 1920
+  height: 1080
+  target_fps: 5.0
+processing:
+  sample_every_n: 6
+  queue_max: 8
+seat_layout_version: demo-v1
+model_set_version: unset

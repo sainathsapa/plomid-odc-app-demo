@@ -1,0 +1,14 @@
+# Camera-specific annotation geometry for the untouched Pexels 4524519 replay.
+# A child is clearly visible in the center seat. The adjacent occupant's age
+# is ambiguous in the sampled views and is intentionally left unscored.
+camera_profile: eval-pexels-4524519
+version: eval-pexels-4524519-v0
+seats:
+  - seat_id: child-center
+    polygon: [[0.18, 0.0], [0.55, 0.0], [0.55, 1.0], [0.18, 1.0]]
+    camera_profile: eval-pexels-4524519
+    version: eval-pexels-4524519-v0
+  - seat_id: unscored-right
+    polygon: [[0.58, 0.0], [1.0, 0.0], [1.0, 1.0], [0.58, 1.0]]
+    camera_profile: eval-pexels-4524519
+    version: eval-pexels-4524519-v0

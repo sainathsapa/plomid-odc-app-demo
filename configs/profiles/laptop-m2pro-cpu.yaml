@@ -1,0 +1,24 @@
+# Deployment profile: laptop-m2pro-cpu (locked 2026-10-13, measured).
+# Reproducible performance contract for the reference demo target.
+profile: laptop-m2pro-cpu
+hardware: "Apple M2 Pro, 16 GB, macOS 15.4 (12 CPU: 8 perf + 4 efficiency)"
+model: rtdetrv2-s-coco
+provider: CPUExecutionProvider
+precision: FP32
+input: "1920x1080 BGR → PIL-BILINEAR 640x640 /255"
+intra_op_threads: 8
+inter_op_threads: 1
+sample_every_n: 6
+threshold: 0.3
+targets:
+  infer_p50_ms_max: 200
+  infer_p95_ms_max: 250
+  processed_fps_min: 4
+measured:
+  infer_p50_ms: 169
+  infer_p95_ms: 189
+  note: "8 threads beat default(190)/4(237)/12(246); efficiency-core spillover explains 12"
+rejected:
+  coreml: "zeroed logits (D15)"
+  int8_dynamic: "1.5x faster but max|dbox| 0.97 parity failure (D21)"
+  fp16_cpu: "no CPU acceleration benefit; precision risk without gain"

@@ -1,0 +1,21 @@
+{
+  "model_id": "dfine-s-coco",
+  "family": "d-fine",
+  "code_repo": "https://github.com/Peterande/D-FINE",
+  "code_revision": "shallow-clone-2026-10-14",
+  "code_license": "Apache-2.0",
+  "onnx_source": "onnx-community/dfine_s_coco-ONNX@a3cf03147a9b86c78475139115c8ac142577352d (third-party conversion of upstream _coco weights)",
+  "weights_license": "Apache-2.0 (upstream _coco; conversion provenance logged, not independently audited)",
+  "dataset_terms": "COCO train2017 (coco checkpoint, not obj2coco)",
+  "approved_for_commercial_use": false,
+  "approval_evidence": "challenger-eval only; needs official .pth + own export + parity before any promotion review",
+  "input_profile": "ASSUMED RGB 640 PIL /255 (matches DETR-family convention; unverified vs native processor)",
+  "runtime_profile": "onnxruntime-cpu",
+  "providers_preference": ["CUDAExecutionProvider", "CPUExecutionProvider"],
+  "providers_blocked": {},
+  "challenger_numbers": {
+    "dev_thr0.3": "P .188 / R .500 / F1 .273 / seat .895 / unk .105",
+    "dev_thr0.5": "P .268 / R .352 / F1 .304 / seat .789 / unk .105",
+    "latency_cpu_ms": "~120 (vs rtdetrv2-s ~190)"
+  }
+}

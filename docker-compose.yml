@@ -1,0 +1,18 @@
+# ODC console only — PLOMID runs on the HOST (never in compose).
+#   1. Start host PLOMID: ./../plomid/target/release/plomid-server \
+#        --data /tmp/plomid-data --host 127.0.0.1 --port 5432 \
+#        --username plomid --password secret
+#   2. docker compose up --build
+# Open http://localhost:8080/live
+services:
+  odc:
+    build: .
+    ports: ["8080:8080"]
+    environment:
+      ODC_DSN: "postgresql://plomid:secret@host.docker.internal:5432/plomid"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./footage:/app/footage:ro
+      - ./models:/app/models:ro
+      - ./configs:/app/configs:ro

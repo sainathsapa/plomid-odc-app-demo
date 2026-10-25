@@ -1,0 +1,9 @@
+# Single-zone layout for footage/E1_empty_cabin.mp4 — demo-e1-v0.
+# Empty driver cabin. APPROXIMATE. Normalized 0..1, 1920x1080.
+camera_profile: empty-cabin-e1
+version: demo-e1-v0
+seats:
+  - seat_id: driver
+    polygon: [[0.0, 0.2], [0.7, 0.2], [0.7, 1.0], [0.0, 1.0]]
+    camera_profile: empty-cabin-e1
+    version: demo-e1-v0

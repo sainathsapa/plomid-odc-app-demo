@@ -1,0 +1,13 @@
+{
+  "_note": "Eval-only clip-level tags, hand-authored 2026-10-13 from viewed frames. Never training labels.",
+  "F1_family_ride": ["person", "person-multiple", "child-seat", "small-occupant", "day"],
+  "C1_baby_carseat": ["person", "child-seat", "small-occupant", "belt-action", "day"],
+  "C2_child_seat": ["person", "child-seat", "small-occupant", "day"],
+  "E1_empty_cabin": ["empty-cabin", "day"],
+  "N1_night_drive": ["person", "night"],
+  "S1_seatbelt_closeup": ["belt", "day"],
+  "S2_belt_up": ["person", "belt", "day"],
+  "R1_rear_wide": ["person", "person-multiple", "day"],
+  "O2_laptop_rear": ["person", "object", "day"],
+  "D1_driver_day": ["person", "day"]
+}

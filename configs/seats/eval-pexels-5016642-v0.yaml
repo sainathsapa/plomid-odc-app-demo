@@ -1,0 +1,12 @@
+# Camera-specific evaluation geometry for Pexels 5016642, rear bench view.
+camera_profile: pexels-5016642-rear-bench
+version: eval-pexels-5016642-v0
+seats:
+  - seat_id: child-left
+    polygon: [[0.0, 0.1], [0.49, 0.1], [0.49, 1.0], [0.0, 1.0]]
+    camera_profile: pexels-5016642-rear-bench
+    version: eval-pexels-5016642-v0
+  - seat_id: child-right
+    polygon: [[0.51, 0.1], [1.0, 0.1], [1.0, 1.0], [0.51, 1.0]]
+    camera_profile: pexels-5016642-rear-bench
+    version: eval-pexels-5016642-v0

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block head %}
+<script src="/static/vendor/echarts.min.js"></script>
+{% endblock %}
+{% block main %}
+<div class="page-head" title="Throughput, latency, model and camera health for the running session">
+<div>
+<p class="eyebrow">Health · Performance</p>
+<h1>Diagnostics</h1>
+<p class="sub">Is the pipeline keeping up? Throughput, latency, model, camera and database in one place.</p>
+</div>
+</div>
+<div class="card" title="Live pipeline snapshot: mode, model, geometry, frames and health flags">
+<h2>Session health</h2>
+{% if snapshot %}
+<table class="data">
+<tr><th>Running</th><td>{{ snapshot.running }}</td></tr>
+<tr><th>Mode</th><td>{{ snapshot.mode.value }}</td></tr>
+<tr><th>Model</th><td>{{ snapshot.model_id }} (healthy: {{ snapshot.model_healthy }})</td></tr>
+<tr><th>Threshold</th><td>{{ '%.2f' % snapshot.threshold }} (global minimum for every class)</td></tr>
+<tr><th>Seat geometry</th><td>{{ snapshot.layout_source or '—' }} · layout {{ layout.version }}{% if layout.layout_type == 'auto-proposal' %} · proposed; calibration review needed{% endif %}</td></tr>
+<tr><th>Steering orientation</th><td>{{ layout.orientation }}{% if layout.orientation == 'UNKNOWN' %} — operator confirmation required{% endif %}</td></tr>
+<tr><th>Body pose</th><td>{{ 'on' if snapshot.pose_on else 'off' }}{% if snapshot.pose_on %} (healthy: {{ snapshot.pose_healthy }}){% endif %}</td></tr>
+<tr><th>Driver monitoring</th><td>{{ 'on' if snapshot.dms_on else 'off' }}{% if snapshot.dms_on %} · driver seat {{ snapshot.driver_seat_id or 'not configured' }} · face model healthy: {{ snapshot.dms_healthy }}{% endif %}</td></tr>
+<tr><th>Provider</th><td>{{ snapshot.provider }}</td></tr>
+<tr><th>Captured / processed / dropped</th><td>{{ snapshot.frames_captured }} / {{ snapshot.frames_processed }} / {{ snapshot.frames_dropped }}</td></tr>
+<tr><th>Live frame seq</th><td>{{ snapshot.frame_seq }}</td></tr>
+<tr><th>Last latency</th><td>{{ '%.1f' % snapshot.last_latency_ms }} ms</td></tr>
+<tr><th>Database</th><td>{{ 'healthy' if snapshot.db_healthy else 'DOWN — degraded mode' }}</td></tr>
+<tr><th>Camera</th><td>{{ snapshot.camera_status.value }}</td></tr>
+<tr><th>Hallucinations suppressed</th><td>{{ snapshot.suppressed_hallucinations }} full-frame vehicle boxes</td></tr>
+<tr><th>Duplicates removed (NMS)</th><td>{{ snapshot.duplicates_removed }}</td></tr>
+<tr><th>Calibrated</th><td>{{ snapshot.calibrated }}</td></tr>
+</table>
+<p class="muted">Suppressed = cabin-impossible full-frame car/truck/bus boxes (E1/C2/R1 measured
+false positives); duplicates = overlapping same-class boxes merged by class-aware NMS.
+Masks are classical GrabCut refinements (no learned panoptic weights); seat belt stays
+camera-only Unknown (COCO has no belt class).</p>
+{% else %}
+<div class="empty">No live diagnostics — service not running. History views still work via ?session=.</div>
+{% endif %}
+</div>
+<div class="card"><h2>Inference latency (last {{ latencies|length }} frames)</h2>
+<div id="lat" style="height: 220px;"></div></div>
+<script>
+const lat = {{ latencies | tojson }};
+if (lat.length) {
+  const chart = echarts.init(document.getElementById('lat'));
+  function renderLatencyChart() {
+    const root = getComputedStyle(document.documentElement);
+    const ink = (root.getPropertyValue('--chart-ink') || '#a0a6ae').trim();
+    const line = (root.getPropertyValue('--line-d') || '#39404a').trim();
+    chart.setOption({ textStyle: { color: ink, fontFamily: 'monospace' },
+      xAxis: { type: 'category', data: lat.map((_, i) => i),
+        axisLabel: { color: ink }, axisLine: { lineStyle: { color: line } } },
+      yAxis: { type: 'value', name: 'ms',
+        axisLabel: { color: ink }, axisLine: { lineStyle: { color: line } },
+        splitLine: { lineStyle: { color: line } } },
+      series: [{ type: 'line', data: lat, showSymbol: false, lineStyle: { color: '#e2683c' } }] });
+  }
+  renderLatencyChart();
+  window.addEventListener('odc-theme-change', renderLatencyChart);
+  window.addEventListener('resize', () => chart.resize());
+}
+</script>
+{% endblock %}

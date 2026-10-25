@@ -1,0 +1,12 @@
+# Approximate seat regions for uploaded Pexels clip 9519139.
+camera_profile: eval-upload-9519139
+version: eval-upload-9519139-v0
+seats:
+  - seat_id: passenger-left
+    polygon: [[0.20, 0.15], [0.55, 0.15], [0.55, 1.0], [0.20, 1.0]]
+    camera_profile: eval-upload-9519139
+    version: eval-upload-9519139-v0
+  - seat_id: driver-right
+    polygon: [[0.55, 0.05], [1.0, 0.05], [1.0, 1.0], [0.55, 1.0]]
+    camera_profile: eval-upload-9519139
+    version: eval-upload-9519139-v0
