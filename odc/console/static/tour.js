@@ -56,6 +56,11 @@
       title: '9 · Event to frame',
       text: 'Select an event, then open its exact video frame here. That is the full loop: pixels → seats → events → back to pixels.',
     },
+    {
+      page: '/relations', sel: '#relations-enforced',
+      title: '10 · Data model',
+      text: 'Every enforced foreign key in the ODC schema, with its source and target columns. Soft links are listed separately with the reason they are not hard constraints.',
+    },
   ];
 
   function storeGet() {

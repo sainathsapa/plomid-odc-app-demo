@@ -397,6 +397,23 @@ class Service:
             log.warning("model unavailable, running degraded: %s: %s", type(e).__name__, e)
             return None
 
+    def _record_model_artifact(self) -> None:
+        """Persist the detector manifest once the session row exists.
+
+        Provenance is best-effort: an unreadable manifest must never stop a
+        perception session. model_id is a documented soft relation because
+        metrics may legitimately arrive first.
+        """
+        upsert = getattr(self._repo, "upsert_model_artifact", None)
+        if upsert is None:
+            return
+        try:
+            from .runtime import load_manifest
+
+            upsert(load_manifest(self._cfg.detection.model_id))
+        except Exception as e:
+            log.warning("model manifest not recorded: %s: %s", type(e).__name__, e)
+
     def start(self) -> str:
         if self._thread is not None:
             return self._session_id
@@ -717,6 +734,7 @@ class Service:
                     )
                 )
                 session_started = True
+                self._record_model_artifact()
         except Exception as e:
             log.warning("plomid unavailable, transient-only: %s", type(e).__name__)
             db_healthy = False
@@ -762,6 +780,7 @@ class Service:
                                     )
                                 )
                                 session_started = True
+                                self._record_model_artifact()
                             db_healthy = True
                             log.info("plomid persistence recovered")
                     except Exception as e:

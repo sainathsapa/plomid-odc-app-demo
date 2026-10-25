@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block main %}
+<div class="page-head" title="Live foreign-key map of the ODC schema in PLOMID">
+<div>
+<p class="eyebrow">Data · PLOMID schema</p>
+<h1>Data model</h1>
+<p class="sub">Every enforced foreign key in <code>plomid_odc</code>, plus the relations deliberately left soft.</p>
+</div>
+</div>
+{% if model_error %}
+<div class="empty">Schema model unavailable — {{ model_error }}</div>
+{% elif model %}
+<div class="relations-stats">
+  <div class="relation-stat"><span>Schema</span><strong>v{{ model.schema_version }}</strong></div>
+  <div class="relation-stat"><span>Enforced FKs</span><strong>{{ model.totals.enforced }}</strong></div>
+  <div class="relation-stat"><span>Soft links</span><strong>{{ model.totals.soft }}</strong></div>
+  <div class="relation-stat"><span>Tables</span><strong>{{ model.totals.tables }}</strong></div>
+  <div class="relation-stat"><span>Rows</span><strong>{{ model.totals.rows }}</strong></div>
+</div>
+
+<div class="card" id="relations-enforced">
+<h2>Enforced foreign keys ({{ model.totals.enforced }})</h2>
+<p class="muted">The database rejects a child row with no parent. <code>NO ACTION</code> is intentional: ODC deletes child rows before the session or asset they belong to.</p>
+{% if model.enforced %}
+<table class="data">
+<thead><tr><th>Source table</th><th>Column</th><th></th><th>Target table</th><th>Column</th><th>Constraint</th><th>On update</th><th>On delete</th></tr></thead>
+<tbody>
+{% for rel in model.enforced %}
+<tr>
+<td>{{ rel.source_table }}</td>
+<td><code>{{ rel.source_column }}</code></td>
+<td class="relation-arrow" aria-label="references">→</td>
+<td>{{ rel.target_table }}</td>
+<td><code>{{ rel.target_column }}</code></td>
+<td><code>{{ rel.constraint_name }}</code></td>
+<td>{{ rel.on_update }}</td>
+<td>{{ rel.on_delete }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<div class="empty">No enforced relations found. Apply schema V008 to enable them.</div>
+{% endif %}
+</div>
+
+<div class="card" id="relations-soft">
+<h2>Documented soft relations ({{ model.totals.soft }})</h2>
+<p class="muted">These links are real but cannot be hard constraints without rejecting valid write order or destroying history. They are joined by the console, not enforced by the database.</p>
+<table class="data">
+<thead><tr><th>Source table</th><th>Column</th><th></th><th>Target table</th><th>Target key</th><th>Why soft</th></tr></thead>
+<tbody>
+{% for rel in model.soft %}
+<tr>
+<td>{{ rel.source_table }}</td>
+<td><code>{{ rel.source_column }}</code></td>
+<td class="relation-arrow" aria-label="references">→</td>
+<td>{{ rel.target_table }}</td>
+<td><code>{{ rel.target_column }}</code></td>
+<td>{{ rel.reason }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+<div class="card" id="relations-tables">
+<h2>Tables and rows ({{ model.totals.rows }})</h2>
+<div class="relations-tables">
+{% for table in model.tables %}
+<div class="relation-table-row"><span>{{ table.table }}</span><span class="pill">{{ table.rows }}</span></div>
+{% endfor %}
+</div>
+</div>
+{% endif %}
+{% endblock %}

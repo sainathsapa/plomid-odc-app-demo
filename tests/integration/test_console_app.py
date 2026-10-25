@@ -78,11 +78,44 @@ def test_all_screens_200(plomid_dsn, session_meta, seat_state, state_event):
             "/seats",
             "/timeline",
             "/diagnostics",
+            "/relations",
             "/validation",
             "/config",
         ):
             assert client.get(path).status_code == 200, path
         assert client.get("/dossier", follow_redirects=False).status_code == 303
+    finally:
+        repo.close()
+
+
+def test_schema_model_api_and_page(plomid_dsn, session_meta, seat_state, state_event):
+    app, repo = _app(plomid_dsn, session_meta, seat_state, state_event)
+    try:
+        client = TestClient(app, raise_server_exceptions=False)
+        model = client.get("/api/schema").json()
+        assert model["api_schema_version"] == "odc.schema-model.v1"
+        assert model["schema_version"] >= 8
+        assert model["totals"]["enforced"] == 12
+        assert model["totals"]["soft"] >= 3
+        assert model["totals"]["tables"] >= 17
+        assert model["totals"]["rows"] >= 1
+
+        links = {
+            (row["source_table"], row["source_column"], row["target_table"], row["target_column"])
+            for row in model["enforced"]
+        }
+        assert ("odc_probe_cache", "video_key", "odc_video_asset", "video_key") in links
+        assert ("odc_inference_metric", "session_id", "odc_session", "session_id") in links
+        assert ("odc_event", "session_id", "odc_session", "session_id") in links
+        soft = {(row["source_table"], row["source_column"]) for row in model["soft"]}
+        assert ("odc_inference_metric", "model_id") in soft
+
+        page = client.get("/relations")
+        assert page.status_code == 200
+        assert "Enforced foreign keys" in page.text
+        assert "probe_cache_asset_fk" in page.text
+        assert "odc_probe_cache" in page.text
+        assert "Documented soft relations" in page.text
     finally:
         repo.close()
 

@@ -49,7 +49,10 @@ keypoints, specialist decisions, raw detection boxes, metrics, layouts, and
 assistant interactions with the exact context supplied to local Ollama/Mistral.
 `/api/live/state` is `odc.live.v1`; persisted seat rows expose
 `odc.seat-observation.v1`; `/api/assistant/history` exposes
-`odc.assistant-history.v1`. User videos remain files under `footage/`; frame
+`odc.assistant-history.v1`. The Data model page (`/relations`) and
+`/api/schema` (`odc.schema-model.v1`) show the live foreign-key catalog:
+twelve enforced relations plus the documented soft links that cannot be hard
+constraints. User videos remain files under `footage/`; frame
 previews are bounded in-memory JPEGs and are not inserted into PLOMID. Model
 weights and code-owned configuration remain local runtime assets. Evaluation
 scripts may explicitly write developer reports when invoked with an output
@@ -109,3 +112,12 @@ status) · `footage/README.md` (eval media manifest).
 
 
 cd plomid && $env:PATH = "C:\msys64\ucrt64\bin;" + $env:PATH; cargo build --release
+
+
+
+sudo apt-get update && sudo apt-get install -y build-essential
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+cargo build --release --locked -p plomid-server
+
+

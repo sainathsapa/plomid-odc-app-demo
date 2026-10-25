@@ -32,9 +32,26 @@ PLOMID upgrade. Never infer from PG compatibility.
 ## Partial / dialect gotchas (ODC must code around)
 - Bare `float` alias missing → use `double precision`/`float8`/`real` (D8).
 - Inline column-level `REFERENCES` rejected → table-level named
-  `FOREIGN KEY` constraints only (F1).
+  `FOREIGN KEY` constraints only (F1). `ALTER TABLE … ADD CONSTRAINT …
+  FOREIGN KEY` is also rejected: a table can only gain an FK when it is
+  created, so later relations require a data-preserving table rebuild.
 - Multi-statement `execute()` does not apply whole files → single-statement
-  runner with comment stripping (F2).
+  runner. The splitter is quote/comment aware, and each statement commits
+  on its own because PLOMID discards DML from a transaction that also
+  contains DDL.
+- `information_schema.key_column_usage` omits FK local columns. Read
+  `pg_constraint` + `pg_attribute` instead; FK rules come from
+  `information_schema.referential_constraints`.
+- View definitions persist lossily. Array subscripts (`conkey[1]`) and
+  `CAST(... AS TEXT)` can come back as `NULL` on a later connection, silently
+  emptying a view. Store only plain references and function calls
+  (`pg_get_constraintdef()`) in a view and parse columns in the client.
+- `%s::timestamptz` fails to parse when the bound value is `NULL`; emit a
+  literal `NULL` for null columns. `%s::text[]` is unsupported, but arrays
+  bind directly with `%s`.
+- `DROP TABLE`/`DROP SCHEMA` can leave stale index and constraint rows in
+  `pg_class`/`pg_constraint`. Filter `relkind='r'` for tables and prefer a
+  fresh data directory when rebuilding a schema from scratch.
 - Bare `version` column binds to `version()` — never name a column `version` (F3).
 - `LIMIT/OFFSET` integer literal or cast only, never params (F4).
 - `UPDATE…FROM` / `COPY` unsupported inside explicit txns; `LIMIT/OFFSET` integer literal or cast only.
@@ -73,6 +90,37 @@ history is queryable by session. Both tables use regular SQL indexes and
 timestamped rows for time-series queries.
 
 PloMID dialect constraints are applied: SQL is sent one statement per call,
-`LIMIT` is a bounded integer literal (not a bind parameter), and migrations
-avoid semicolons in line comments because the migration runner splits on
-semicolons. No frame pixels or video bytes are stored in SQL.
+`LIMIT` is a bounded integer literal (not a bind parameter), and the
+migration runner is quote/comment aware with one committed statement per
+transaction. No frame pixels or video bytes are stored in SQL.
+
+## Foreign keys and the relation catalog (V008)
+
+V001–V007 carried session foreign keys on the core tables. V008 adds the
+five missing enforced relations:
+
+| Source | Column | Target |
+|---|---|---|
+| `odc_camera_status` | `session_id` | `odc_session.session_id` |
+| `odc_inference_metric` | `session_id` | `odc_session.session_id` |
+| `odc_video_seatmap` | `video_key` | `odc_video_asset.video_key` |
+| `odc_probe_cache` | `video_key` | `odc_video_asset.video_key` |
+| `odc_analytics_snapshot` | `video_key` | `odc_video_asset.video_key` |
+
+PLOMID cannot add an FK to an existing table, so V008 rebuilds each child:
+populate a `<table>_fk` staging table, rename the old table to `<table>_old`,
+rename staging into place, then drop the old table. Each statement runs in
+its own transaction; rows are copied before the old table is touched.
+`odc_inference_metric.id` is copied without its surrogate id so the new
+`BIGSERIAL` advances normally.
+
+The enforced relations are exposed by `plomid_odc.odc_relation_catalog`.
+Because view expressions are stored lossily, the view returns
+`pg_get_constraintdef()` text plus the constraint rules; the console parses
+the source/target columns. `/api/schema` exposes the same model as
+`odc.schema-model.v1`, and `/relations` renders it as the Data model page.
+
+Relations that stay soft are listed in the API/page with reasons:
+`odc_inference_metric.model_id` (telemetry may precede artifact
+registration), seat ids inside the `odc_seat_layout` JSON, and ephemeral
+track ids retained by events/detections after current state is cleaned up.

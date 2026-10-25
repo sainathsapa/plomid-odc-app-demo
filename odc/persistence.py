@@ -7,11 +7,13 @@ never logged. Perception code never sees a connection.
 
 from __future__ import annotations
 
+import re
 import time
 from datetime import datetime
 from typing import Any
 
 import psycopg
+from psycopg import sql
 
 from . import contracts
 from .domain import (
@@ -30,6 +32,68 @@ from .migrate import apply_pending, current_version
 
 log = get_logger("persistence")
 MAX_RETRIES = 3
+
+# pg_get_constraintdef() emits, for example:
+#   FOREIGN KEY (session_id) REFERENCES plomid_odc.odc_session(session_id)
+FK_DEFINITION_RE = re.compile(r"FOREIGN KEY\s*\(([^)]+)\)\s*REFERENCES\s+(?:[^(\s]+)\(([^)]+)\)")
+
+# Relations that are intentionally not enforced. Each entry names the live
+# link and why a hard constraint would lose data or reject valid write order.
+SOFT_RELATIONS: tuple[dict[str, str], ...] = (
+    {
+        "source_table": "odc_inference_metric",
+        "source_column": "model_id",
+        "target_table": "odc_model_artifact",
+        "target_column": "model_id",
+        "reason": (
+            "Telemetry may be written before the artifact is registered; "
+            "provenance is joined, never dropped."
+        ),
+    },
+    {
+        "source_table": "odc_occupant_state_current",
+        "source_column": "seat_id",
+        "target_table": "odc_seat_layout",
+        "target_column": "seats[].seat_id",
+        "reason": (
+            "Seat ids live inside the layout JSON; geometry can be replaced "
+            "while a session is running."
+        ),
+    },
+    {
+        "source_table": "odc_event",
+        "source_column": "seat_id",
+        "target_table": "odc_seat_layout",
+        "target_column": "seats[].seat_id",
+        "reason": (
+            "Historical events must outlive layout edits, so the seat id is a snapshot value."
+        ),
+    },
+    {
+        "source_table": "odc_event",
+        "source_column": "track_id",
+        "target_table": "odc_occupant_state_current",
+        "target_column": "track_id",
+        "reason": "Tracks are ephemeral; events retain the id after the current-state row is gone.",
+    },
+    {
+        "source_table": "odc_frame_detection",
+        "source_column": "track_id",
+        "target_table": "odc_occupant_state_current",
+        "target_column": "track_id",
+        "reason": (
+            "Evidence keeps the track id even when tracking expires or the occupant is reassigned."
+        ),
+    },
+)
+
+
+def parse_fk_definition(definition: str | None) -> tuple[str, str]:
+    """Extract (source_column, target_column) from a constraint definition."""
+    match = FK_DEFINITION_RE.search(definition or "")
+    if match is None:
+        return "", ""
+    return match.group(1).strip(), match.group(2).strip()
 
 
 def to_sql_error(exc: Exception) -> SqlError:
@@ -188,6 +252,81 @@ class PlomidRepository(contracts.Repository):
                 # Legacy migration is best-effort per table; the new schema
                 # remains usable and the failure is visible in logs.
                 log.warning("legacy ODC copy skipped table=%s error=%s", table, type(exc).__name__)
+
+    # -- schema introspection -------------------------------------------
+
+    def read_schema_model(self) -> dict[str, Any]:
+        """Return enforced foreign keys, documented soft links and row counts.
+
+        The database view exposes one row per enforced FK. PLOMID persists
+        view expressions lossily (array subscripts and CAST become NULL), so
+        the view deliberately stores ``pg_get_constraintdef()`` and the two
+        column names are parsed here. The read uses a single connection so
+        the displayed snapshot is internally consistent.
+        """
+        try:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT source_table, target_table, constraint_name, "
+                        "definition, on_update, on_delete "
+                        "FROM odc_relation_catalog "
+                        "ORDER BY source_table, constraint_name"
+                    )
+                    relation_rows = cur.fetchall()
+                    cur.execute(
+                        "SELECT table_name FROM information_schema.tables "
+                        "WHERE table_schema = 'plomid_odc' "
+                        "AND table_type = 'BASE TABLE' "
+                        "AND table_name <> 'odc_schema_version' "
+                        "ORDER BY table_name"
+                    )
+                    table_names = [row[0] for row in cur.fetchall()]
+                    table_counts: list[dict[str, Any]] = []
+                    for name in table_names:
+                        cur.execute(
+                            sql.SQL("SELECT COUNT(*) FROM {}.{}").format(
+                                sql.Identifier("plomid_odc"), sql.Identifier(name)
+                            )
+                        )
+                        count_row = cur.fetchone()
+                        table_counts.append(
+                            {"table": name, "rows": int(count_row[0]) if count_row else 0}
+                        )
+                    cur.execute("SELECT MAX(schema_version) FROM odc_schema_version")
+                    version_row = cur.fetchone()
+        except Exception as exc:
+            raise RepositoryError(to_sql_error(exc)) from exc
+
+        enforced: list[dict[str, Any]] = []
+        for row in relation_rows:
+            source_table, target_table, constraint_name, definition, on_update, on_delete = row
+            source_column, target_column = parse_fk_definition(definition)
+            enforced.append(
+                {
+                    "source_table": source_table,
+                    "source_column": source_column,
+                    "target_table": target_table,
+                    "target_column": target_column,
+                    "constraint_name": constraint_name,
+                    "on_update": on_update,
+                    "on_delete": on_delete,
+                }
+            )
+        soft = [dict(item) for item in SOFT_RELATIONS]
+        return {
+            "api_schema_version": "odc.schema-model.v1",
+            "schema_version": int(version_row[0]) if version_row and version_row[0] else 0,
+            "enforced": enforced,
+            "soft": soft,
+            "tables": table_counts,
+            "totals": {
+                "enforced": len(enforced),
+                "soft": len(soft),
+                "tables": len(table_counts),
+                "rows": sum(item["rows"] for item in table_counts),
+            },
+        }
 
     # -- writes (all idempotent) ----------------------------------------
 

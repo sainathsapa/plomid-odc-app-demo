@@ -77,62 +77,137 @@ def split_statements(sql: str) -> list[str]:
     """Split a migration file into single statements.
 
     PLOMID executes one statement per request — multi-statement execute()
-    does not apply the whole file. ODC migrations are plain DDL with no
-    semicolons inside statements, so a semicolon split is exact. Leading
-    `--` comment lines are stripped per chunk (never whole chunks).
+    does not apply the whole file. This splitter respects single-quoted
+    strings and `--` line comments, so semicolons inside either do not
+    create fake statements. ODC migrations use no dollar-quoted strings or
+    block comments.
     """
     statements: list[str] = []
-    for part in sql.split(";"):
-        lines = [line for line in part.splitlines() if not line.strip().startswith("--")]
-        text = "\n".join(lines).strip().rstrip(";").strip()
-        if text:
-            statements.append(text)
+    buf: list[str] = []
+    in_string = False
+    in_comment = False
+    i = 0
+    while i < len(sql):
+        ch = sql[i]
+        if in_comment:
+            if ch == "\n":
+                in_comment = False
+                buf.append(ch)
+            i += 1
+            continue
+        if in_string:
+            buf.append(ch)
+            if ch == "'":
+                if i + 1 < len(sql) and sql[i + 1] == "'":
+                    buf.append("'")
+                    i += 2
+                    continue
+                in_string = False
+            i += 1
+            continue
+        if ch == "'":
+            in_string = True
+            buf.append(ch)
+            i += 1
+            continue
+        if ch == "-" and i + 1 < len(sql) and sql[i + 1] == "-":
+            in_comment = True
+            i += 2
+            continue
+        if ch == ";":
+            text = "".join(buf).strip()
+            if text:
+                statements.append(text)
+            buf = []
+            i += 1
+            continue
+        buf.append(ch)
+        i += 1
+    text = "".join(buf).strip()
+    if text:
+        statements.append(text)
     return statements
 
 
-def apply_pending(conn: psycopg.Connection) -> list[int]:
-    """Apply unapplied migrations in order, each in its own transaction."""
+def qualify_statement(statement: str) -> str:
+    """Make unqualified ODC objects deterministic inside one migration.
+
+    PLOMID resets the effective search path for DDL, so table references are
+    prefixed explicitly. Index names keep their historical prefix mapping,
+    and a RENAME TO target is left unqualified because it names the new
+    object rather than referencing a table.
+    """
+    qualified = statement
+    for table in sorted(ODC_TABLES, key=len, reverse=True):
+        qualified = re.sub(
+            rf"(?<![A-Za-z0-9_.]){table}(?![A-Za-z0-9_])",
+            f"plomid_odc.{table}",
+            qualified,
+        )
+    for old_index, new_index in (
+        ("odc_event_session_idx", "plomid_odc_event_session_idx"),
+        ("odc_video_asset_path_idx", "plomid_odc_video_asset_path_idx"),
+        ("odc_metric_session_idx", "plomid_odc_metric_session_idx"),
+        ("odc_event_type_idx", "plomid_odc_event_type_idx"),
+        (
+            "odc_frame_observation_session_idx",
+            "plomid_odc_frame_observation_session_idx",
+        ),
+        ("odc_assistant_session_idx", "plomid_odc_assistant_session_idx"),
+    ):
+        qualified = qualified.replace("CREATE INDEX " + old_index, "CREATE INDEX " + new_index)
+    # A RENAME TO target is an object name, not a table reference. The
+    # generic qualifier above would turn the target into
+    # "plomid_odc.<name>", which PLOMID rejects.
+    return re.sub(
+        r"(?i)(RENAME\s+TO\s+)plomid_odc\.",
+        r"\1",
+        qualified,
+    )
+
+
+def apply_pending(conn: psycopg.Connection, target_version: int | None = None) -> list[int]:
+    """Apply unapplied migrations in order, one statement per transaction.
+
+    PLOMID discards DML when the same transaction also contains DDL, so a
+    migration that rebuilds a table and copies rows must never run inside
+    one long transaction. Each statement commits on its own; the version
+    row is written only after every statement succeeds.
+
+    The search path is set inside each statement's transaction because DDL
+    resets it. This keeps unqualified index names in plomid_odc on fresh
+    installs while data copies still commit.
+
+    ``target_version`` is for tests and staged upgrades; production callers
+    leave it unset and apply every pending migration.
+    """
     done = applied_versions(conn)
     applied: list[int] = []
-    for version, path in list_migrations():
-        if version in done:
-            continue
-        with conn.transaction():
-            with conn.cursor() as cur:
-                # PLOMID starts a fresh transaction for each migration; set
-                # the namespace inside that transaction as well as at connect
-                # time so unqualified legacy migration SQL is deterministic.
-                cur.execute("SET search_path TO plomid_odc, public")
-                for statement in split_statements(path.read_text()):
-                    # PLOMID transaction handling resets effective search path
-                    # for DDL, so qualify every ODC object explicitly.
-                    qualified = statement
-                    for table in sorted(ODC_TABLES, key=len, reverse=True):
-                        qualified = re.sub(
-                            rf"(?<![A-Za-z0-9_.]){table}(?![A-Za-z0-9_])",
-                            f"plomid_odc.{table}",
-                            qualified,
-                        )
-                    for old_index, new_index in (
-                        ("odc_event_session_idx", "plomid_odc_event_session_idx"),
-                        ("odc_video_asset_path_idx", "plomid_odc_video_asset_path_idx"),
-                        ("odc_metric_session_idx", "plomid_odc_metric_session_idx"),
-                        ("odc_event_type_idx", "plomid_odc_event_type_idx"),
-                        (
-                            "odc_frame_observation_session_idx",
-                            "plomid_odc_frame_observation_session_idx",
-                        ),
-                        ("odc_assistant_session_idx", "plomid_odc_assistant_session_idx"),
-                    ):
-                        qualified = qualified.replace(
-                            "CREATE INDEX " + old_index, "CREATE INDEX " + new_index
-                        )
-                    cur.execute(qualified)
-                cur.execute(
-                    "INSERT INTO plomid_odc.odc_schema_version (schema_version) VALUES (%s)",
-                    (version,),
-                )
-        applied.append(version)
+    previous_autocommit = conn.autocommit
+    if not previous_autocommit:
+        conn.commit()
+        conn.autocommit = True
+    try:
+        for version, path in list_migrations():
+            if target_version is not None and version > target_version:
+                break
+            if version in done:
+                continue
+            for statement in split_statements(path.read_text()):
+                with conn.transaction():
+                    with conn.cursor() as cur:
+                        cur.execute("SET search_path TO plomid_odc, public")
+                        cur.execute(qualify_statement(statement))
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO plomid_odc.odc_schema_version (schema_version) VALUES (%s)",
+                        (version,),
+                    )
+            applied.append(version)
+    finally:
+        if not previous_autocommit:
+            conn.autocommit = False
     return applied
 
 

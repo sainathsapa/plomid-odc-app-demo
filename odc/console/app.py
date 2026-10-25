@@ -1051,6 +1051,32 @@ def create_app(
             c["latencies"] = list(live_hub.latencies)
         return templates.TemplateResponse(request, "diagnostics.html", c)
 
+    @app.get("/relations", response_class=HTMLResponse)
+    def relations(request: Request) -> Any:
+        active = request.app.state.repo
+        model = None
+        error = None
+        try:
+            read_model = getattr(active, "read_schema_model", None)
+            if read_model is not None:
+                model = read_model()
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+        return templates.TemplateResponse(
+            request, "relations.html", ctx(request, model=model, model_error=error)
+        )
+
+    @app.get("/api/schema")
+    def api_schema(request: Request) -> Any:
+        active = request.app.state.repo
+        read_model = getattr(active, "read_schema_model", None)
+        if read_model is None:
+            return JSONResponse({"error": "schema model is unavailable"}, status_code=503)
+        try:
+            return JSONResponse(read_model())
+        except Exception as exc:
+            return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=503)
+
     @app.get("/validation", response_class=HTMLResponse)
     def validation(request: Request) -> Any:
         active = request.app.state.repo

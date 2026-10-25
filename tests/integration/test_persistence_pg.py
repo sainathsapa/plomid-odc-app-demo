@@ -37,6 +37,48 @@ def test_migrate_fresh_to_current(plomid_dsn):
         repo.close()
 
 
+def test_v008_foreign_keys_and_relation_catalog(plomid_dsn):
+    latest = max(version for version, _ in list_migrations())
+    repo = _repo(plomid_dsn)
+    try:
+        assert repo.ensure_schema_version(latest) == latest
+        # Opening a fresh connection inside read_schema_model also proves the
+        # catalog view survives PLOMID's lossy view persistence.
+        model = repo.read_schema_model()
+    finally:
+        repo.close()
+
+    assert model["schema_version"] == latest
+    assert model["totals"]["enforced"] == 12
+    expected = {
+        ("odc_camera_status", "session_id", "odc_session", "session_id"),
+        ("odc_event", "session_id", "odc_session", "session_id"),
+        ("odc_inference_metric", "session_id", "odc_session", "session_id"),
+        ("odc_seat_state_current", "session_id", "odc_session", "session_id"),
+        ("odc_occupant_state_current", "session_id", "odc_session", "session_id"),
+        ("odc_frame_detection", "session_id", "odc_session", "session_id"),
+        ("odc_frame_observation", "session_id", "odc_session", "session_id"),
+        ("odc_assistant_interaction", "session_id", "odc_session", "session_id"),
+        ("odc_video_seatmap", "video_key", "odc_video_asset", "video_key"),
+        ("odc_probe_cache", "video_key", "odc_video_asset", "video_key"),
+        ("odc_analytics_snapshot", "video_key", "odc_video_asset", "video_key"),
+        ("odc_validation_result", "run_id", "odc_validation_run", "run_id"),
+    }
+    links = {
+        (row["source_table"], row["source_column"], row["target_table"], row["target_column"])
+        for row in model["enforced"]
+    }
+    assert links == expected
+    assert all(row["on_update"] == "NO ACTION" for row in model["enforced"])
+    assert all(row["on_delete"] == "NO ACTION" for row in model["enforced"])
+    assert all(row["constraint_name"] for row in model["enforced"])
+
+    with psycopg.connect(plomid_dsn, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM plomid_odc.odc_relation_catalog")
+            assert cur.fetchone()[0] == 12
+
+
 def test_migrate_upgrade_v1_to_v2(plomid_dsn):
     import os
 

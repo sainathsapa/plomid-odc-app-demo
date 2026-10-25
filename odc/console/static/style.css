@@ -276,6 +276,34 @@ table.data th {
   padding: 24px; text-align: center; color: var(--t-d3); font-size: 12px;
   border: 1px dashed var(--line-d2); border-radius: var(--radius);
 }
+/* Data model: relation counts, FK arrows and the table/row inventory. */
+.relations-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px; margin-bottom: 14px;
+}
+.relation-stat {
+  background: var(--graphite); border: 1px solid var(--line-d);
+  border-radius: var(--radius); padding: 10px 12px;
+}
+.relation-stat span {
+  display: block; font-family: var(--mono); font-size: 0.625rem;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--t-d3);
+}
+.relation-stat strong {
+  display: block; margin-top: 2px; font-family: var(--mono);
+  font-size: 20px; font-weight: 500; color: var(--t-d);
+}
+.relation-arrow { color: var(--accent); font-family: var(--mono); }
+.relations-tables {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 6px 18px;
+}
+.relation-table-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--line-d);
+  font-family: var(--mono); font-size: 12px;
+}
+.relation-table-row .pill { font-size: 0.625rem; }
 .tour { position: fixed; right: 16px; bottom: 16px; width: 340px; z-index: 50; }
 /* Buttons: submit is the one copper action; everything else is hairline. */
 button, .btn {
