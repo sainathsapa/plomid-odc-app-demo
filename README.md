@@ -4,6 +4,11 @@ Edge cabin-occupant intelligence: camera observations → temporal seat
 states → PLOMID SQL truth → engineering console. Pretrained inference only,
 uncertainty explicit, no training in this program.
 
+> **Start here:** [ODC Single Source of Truth](docs/odc/ODC_SINGLE_SOURCE_OF_TRUTH.md)
+> — consolidated models, data, pipeline, schema, console, validation, privacy,
+> operations, known discrepancies, and event/pitch Q&A. Every capability is
+> labelled and every claim is sourced.
+
 ## 60-second start (demo)
 
 Prerequisite: PLOMID running on the HOST (never containerized):
@@ -110,6 +115,10 @@ Reports are measured on named hardware, never pledged. Prototype: not
 safety-certified, never claims to be.
 
 ## Docs
+
+**Single source of truth:** [`docs/odc/ODC_SINGLE_SOURCE_OF_TRUTH.md`](docs/odc/ODC_SINGLE_SOURCE_OF_TRUTH.md)
+— read this first; it consolidates the documents below and records known
+doc/code discrepancies.
 
 `PLOMID_ODC_MASTER_BUILD_PLAN.md` (locked v1.0) · `docs/odc/` (requirements,
 architecture, model selection + licenses, ontology, SQL capabilities,
