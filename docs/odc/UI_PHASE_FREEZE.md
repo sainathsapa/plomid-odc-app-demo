@@ -26,10 +26,10 @@ their meaning:
 - Per-frame detection geometry is stored in
   `plomid_odc.odc_frame_detection.bbox` as `VECTOR(FLOAT32,4)`.
 - The bbox vector is geometry, not a semantic embedding.
-- The local Mistral assistant is explicit user action only. It cannot create
-  detections, change seat state or write AI-generated claims to PLOMID.
+- The AI assistant is explicit user action only. It cannot create detections,
+  change seat state or write AI-generated claims to PLOMID.
 - Out-of-scope assistant questions return a scope response and are not sent to
-  Ollama.
+  the configured provider.
 
 ## Stable UI endpoints
 
@@ -39,7 +39,7 @@ their meaning:
 - `GET /api/seats` — current or selected-session seat states.
 - `POST /api/service/start` — starts/restarts a perception session.
 - `POST /api/service/stop` — stops the active session.
-- `POST /api/assistant/ask` — explicit local Mistral request.
+- `POST /api/assistant/ask` — explicit user-triggered assistant request.
 - `GET /api/health` — application/component health.
 
 ## UI-only work allowed after freeze

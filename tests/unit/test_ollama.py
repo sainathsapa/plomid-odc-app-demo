@@ -1,4 +1,4 @@
-"""Tests for the explicit, local-only Ollama assistant boundary."""
+"""Tests for the explicit, operator-triggered assistant boundary."""
 
 from __future__ import annotations
 
@@ -38,6 +38,57 @@ def test_generate_uses_local_endpoint_and_returns_text(monkeypatch):
     assert seen["body"]["stream"] is False
     assert seen["body"]["options"]["num_predict"] == 140
     assert "natural language" in seen["body"]["system"]
+
+
+def test_generate_pollinations_uses_openai_chat_endpoint(monkeypatch):
+    seen = {}
+
+    class PollinationsResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            body = {
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": "Seat 3 has insufficient evidence.",
+                        }
+                    }
+                ]
+            }
+            return json.dumps(body).encode()
+
+    def fake_urlopen(request, timeout):
+        seen["url"] = request.full_url
+        seen["timeout"] = timeout
+        seen["body"] = json.loads(request.data.decode())
+        seen["authorization"] = request.get_header("Authorization")
+        return PollinationsResponse()
+
+    monkeypatch.setattr("odc.ollama.urlopen", fake_urlopen)
+    cfg = OllamaConfig(
+        provider="pollinations",
+        url="https://text.pollinations.ai/openai",
+        model="openai-fast",
+        timeout_s=90,
+    )
+    result = generate("Why is Seat 3 unknown?", {"seat_id": "seat_3"}, cfg)
+    assert "insufficient" in result
+    assert seen["url"] == "https://text.pollinations.ai/openai"
+    assert seen["timeout"] == 90
+    assert seen["authorization"] is None
+    assert seen["body"]["model"] == "openai-fast"
+    assert seen["body"]["stream"] is False
+    assert seen["body"]["max_tokens"] == 500
+    assert seen["body"]["messages"][0]["role"] == "system"
+    assert "natural language" in seen["body"]["messages"][0]["content"]
+    assert "Cabin evidence" in seen["body"]["messages"][1]["content"]
+    assert seen["body"]["messages"][1]["role"] == "user"
 
 
 def test_generate_disabled_fails_closed():

@@ -82,8 +82,9 @@ Validated against the local PLOMID server using real SQL/PG-wire integration
 tests. `odc_frame_observation` stores one JSONB payload per `(session_id,
 frame_seq)` with `TIMESTAMPTZ`, a composite primary key, and session foreign
 key. It contains the seat-row contract, pose landmarks, and specialist
-decisions. `odc_assistant_interaction` stores explicit Mistral requests,
-responses/status, frame/seat reference, and exact request context as JSONB;
+decisions. `odc_assistant_interaction` stores explicit assistant requests,
+provider/model, responses/status, frame/seat reference, and exact request
+context as JSONB;
 history is queryable by session. Both tables use regular SQL indexes and
 `ON CONFLICT` idempotency. Existing raw boxes continue to use
 `VECTOR(FLOAT32,4)` in `odc_frame_detection`; inference metrics retain

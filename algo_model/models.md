@@ -14,9 +14,12 @@ does not store face or identity vectors. The `odc_frame_detection.bbox` column
 is a real PLOMID vector containing geometry only: `[x_min, y_min, x_max,
 y_max]`.
 
-The local Mistral assistant is a separate, explicit operator explanation tool.
-It receives structured current-state evidence and cannot create detections,
-change seat state, or write model-generated claims into PLOMID. A future
+The assistant (local Ollama by default, or a configured OpenAI-compatible
+hosted provider) is a separate, explicit operator explanation tool. It receives
+structured current-state evidence and cannot create detections, change seat
+state, or write model-generated claims into PLOMID. A hosted provider receives
+that evidence outside the instance; disable the assistant when external
+processing is not permitted. A future
 semantic-search feature requires a separately approved feature model, fixed
 dimension, provenance/license review, benchmark evidence, retention policy,
 and a versioned migration; it is not part of this MVP.

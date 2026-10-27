@@ -512,10 +512,10 @@ async function stopRun() {
 </div>
 </div>
 
-<button type="button" id="assistant-toggle" class="primary assistant-fab" aria-expanded="false" aria-controls="assistant-panel">Ask local Mistral</button>
+<button type="button" id="assistant-toggle" class="primary assistant-fab" aria-expanded="false" aria-controls="assistant-panel">Ask AI assistant</button>
 <section id="assistant-panel" class="assistant-panel" role="dialog" aria-modal="false" aria-labelledby="assistant-title" aria-hidden="true" hidden>
-<div class="assistant-panel-head"><h2 id="assistant-title">Ask local Mistral</h2><span class="muted">on demand</span><span class="spacer"></span><button type="button" id="assistant-close" class="ghost" aria-label="Close Mistral chat">Close</button></div>
-<p class="muted assistant-note">PLOMID answers from this cabin session. It can explain observed states and events, but cannot change detections or write model guesses to the database.</p>
+<div class="assistant-panel-head"><h2 id="assistant-title">Ask AI assistant</h2><span class="muted">on demand</span><span class="spacer"></span><button type="button" id="assistant-close" class="ghost" aria-label="Close assistant chat">Close</button></div>
+<p class="muted assistant-note">PLOMID answers from this cabin session. It can explain observed states and events, but cannot change detections or write model guesses to the database. When enabled, your question and the current cabin context are sent to the configured AI provider.</p>
 <div id="assistant-answer" class="assistant-answer assistant-panel-body" role="log" aria-live="polite" aria-relevant="additions">Ask a question about this session.</div>
 <form id="assistant-form">
 <label class="sr-only" for="assistant-prompt">Question about PLOMID Cabin</label>
@@ -1141,7 +1141,7 @@ async function stopRun() {
     }
     poll();
   }
-  async function askLocalMistral() {
+  async function askAssistant() {
     const input = document.getElementById('assistant-prompt');
     const button = document.getElementById('assistant-ask');
     const status = document.getElementById('assistant-status');
@@ -1163,9 +1163,9 @@ async function stopRun() {
       return item;
     };
     if (button) button.disabled = true;
-    if (status) status.textContent = 'Asking local Mistral…';
+    if (status) status.textContent = 'Asking the AI assistant…';
     addMessage('user', prompt);
-    const responseMessage = addMessage('model', 'PLOMID is waiting for a response from local Mistral…');
+    const responseMessage = addMessage('model', 'PLOMID is waiting for a response from the AI assistant…');
     try {
       const r = await fetch('/api/assistant/ask', {
         method: 'POST',
@@ -1173,11 +1173,11 @@ async function stopRun() {
         body: JSON.stringify({prompt, seat_id: selectedSeat})
       });
       const payload = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(payload.detail || 'Local Mistral is unavailable.');
-      if (responseMessage) responseMessage.textContent = payload.answer || 'The local model returned no answer.';
-      if (status) status.textContent = `${payload.provider || 'ollama'} · ${payload.model || 'mistral'} · user-triggered`;
+      if (!r.ok) throw new Error(payload.error || payload.detail || 'AI assistant is unavailable.');
+      if (responseMessage) responseMessage.textContent = payload.answer || 'The assistant returned no answer.';
+      if (status) status.textContent = `${payload.provider || 'assistant'}${payload.model ? ' · ' + payload.model : ''} · user-triggered`;
     } catch (err) {
-      if (responseMessage) responseMessage.textContent = `No answer: ${err.message}. Start Ollama and pull the configured model if required.`;
+      if (responseMessage) responseMessage.textContent = `No answer: ${err.message}`;
       if (status) status.textContent = 'Assistant unavailable';
     } finally {
       if (button) button.disabled = false;
@@ -1269,10 +1269,10 @@ async function stopRun() {
     }
   });
   const assistantForm = document.getElementById('assistant-form');
-  if (assistantForm) assistantForm.addEventListener('submit', (e) => { e.preventDefault(); askLocalMistral(); });
+  if (assistantForm) assistantForm.addEventListener('submit', (e) => { e.preventDefault(); askAssistant(); });
   const assistantInput = document.getElementById('assistant-prompt');
   if (assistantInput) assistantInput.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); askLocalMistral(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); askAssistant(); }
   });
   const closeAssistant = document.getElementById('assistant-close');
   if (closeAssistant) closeAssistant.addEventListener('click', () => setAssistantOpen(false));

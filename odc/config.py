@@ -159,11 +159,12 @@ class AgeConfig(BaseModel):
 
 
 class AssistantConfig(BaseModel):
-    """Explicit local Ollama assistant; never part of frame processing."""
+    """Explicit operator-triggered assistant; never part of frame processing."""
 
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = True
+    provider: Literal["ollama", "pollinations"] = "ollama"
     url: str = "http://127.0.0.1:11434"
     model: str = "mistral"
     timeout_s: float = Field(default=30.0, gt=0, le=120)

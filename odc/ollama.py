@@ -1,8 +1,10 @@
-"""Explicit, local-only Ollama assistant boundary.
+"""Explicit, operator-triggered assistant boundary.
 
-This module is never called by capture, inference, tracking, state, or alerts.
-The console invokes it only from an explicit user request and persists the
-request/response through the PLOMID repository boundary.
+Supports the default local Ollama endpoint and an OpenAI-compatible hosted
+provider (Pollinations). This module is never called by capture, inference,
+tracking, state, or alerts. The console invokes it only from an explicit user
+request and persists the request/response through the PLOMID repository
+boundary.
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from typing import Literal
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -17,13 +20,14 @@ from urllib.request import Request, urlopen
 @dataclass(frozen=True)
 class OllamaConfig:
     enabled: bool = True
+    provider: Literal["ollama", "pollinations"] = "ollama"
     url: str = "http://127.0.0.1:11434"
     model: str = "mistral"
     timeout_s: float = 30.0
 
 
 class OllamaUnavailable(RuntimeError):
-    """Local Ollama/model is unavailable or rejected the request."""
+    """Configured assistant provider is unavailable or rejected the request."""
 
 
 OUT_OF_SCOPE_MESSAGE = (
@@ -153,9 +157,9 @@ def is_in_scope(prompt: str) -> bool:
 
 
 def generate(prompt: str, context: dict[str, object], cfg: OllamaConfig) -> str:
-    """Ask local Ollama once, on demand, with structured cabin context."""
+    """Ask the configured assistant once, on demand, with structured cabin context."""
     if not cfg.enabled:
-        raise OllamaUnavailable("local assistant is disabled")
+        raise OllamaUnavailable("assistant is disabled")
     if not is_in_scope(prompt):
         return OUT_OF_SCOPE_MESSAGE
     system = (
@@ -180,35 +184,72 @@ def generate(prompt: str, context: dict[str, object], cfg: OllamaConfig) -> str:
         "detection, this application, its models, its UI, or its database, reply "
         "only: 'This question is outside the PLOMID Cabin assistant scope.'"
     )
-    body = {
-        "model": cfg.model,
-        "stream": False,
-        "system": system,
-        "prompt": (
-            f"User question:\n{prompt}\n\nCabin evidence:\n{json.dumps(context, default=str)}"
-        ),
-        "options": {
+    evidence = json.dumps(context, default=str)
+    headers = {"Content-Type": "application/json"}
+    if cfg.provider == "pollinations":
+        body = {
+            "model": cfg.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {
+                    "role": "user",
+                    "content": f"User question:\n{prompt}\n\nCabin evidence:\n{evidence}",
+                },
+            ],
             "temperature": 0.0,
-            "top_p": 0.8,
-            "repeat_penalty": 1.15,
-            "num_predict": 140,
-        },
-    }
+            "max_tokens": 500,
+            "stream": False,
+        }
+        headers["User-Agent"] = "PLOMID-ODC/0.1"
+        endpoint = cfg.url.rstrip("/")
+    else:
+        body = {
+            "model": cfg.model,
+            "stream": False,
+            "system": system,
+            "prompt": f"User question:\n{prompt}\n\nCabin evidence:\n{evidence}",
+            "options": {
+                "temperature": 0.0,
+                "top_p": 0.8,
+                "repeat_penalty": 1.15,
+                "num_predict": 140,
+            },
+        }
+        endpoint = cfg.url.rstrip("/") + "/api/generate"
     request = Request(
-        cfg.url.rstrip("/") + "/api/generate",
+        endpoint,
         data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
         with urlopen(request, timeout=cfg.timeout_s) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
+        if cfg.provider == "pollinations":
+            raise OllamaUnavailable(
+                f"Pollinations request failed (HTTP {exc.code}); try again shortly"
+            ) from exc
         raise OllamaUnavailable(f"Ollama HTTP {exc.code}; check model '{cfg.model}'") from exc
     except (URLError, TimeoutError, OSError) as exc:
+        if cfg.provider == "pollinations":
+            raise OllamaUnavailable(
+                f"Pollinations is not reachable at {cfg.url}; try again shortly"
+            ) from exc
         raise OllamaUnavailable(
             "Ollama is not reachable at " + cfg.url + "; start Ollama and pull model " + cfg.model
         ) from exc
+    if cfg.provider == "pollinations":
+        text = None
+        if isinstance(payload, dict):
+            choices = payload.get("choices")
+            if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+                message = choices[0].get("message")
+                if isinstance(message, dict):
+                    text = message.get("content")
+        if not isinstance(text, str) or not text.strip():
+            raise OllamaUnavailable("Pollinations returned no answer text")
+        return text.strip()
     text = payload.get("response") if isinstance(payload, dict) else None
     if not isinstance(text, str) or not text.strip():
         raise OllamaUnavailable("Ollama returned no response text")

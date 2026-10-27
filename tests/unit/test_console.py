@@ -674,7 +674,7 @@ def test_live_page_has_seat_context_alerts_and_frame():
     assert "refreshRecentAlerts" in html
     assert "refreshEventHistory" in html
     assert "Active alerts" in html and "Recent cabin events" in html
-    assert "PLOMID is waiting for a response from local Mistral" in html
+    assert "PLOMID is waiting for a response from the AI assistant" in html
     assert "shared inference" not in html
     assert "data-seat-detail-close" in html
     assert "/api/service/preview.jpeg?path=" in html

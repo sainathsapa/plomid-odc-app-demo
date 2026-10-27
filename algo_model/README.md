@@ -15,14 +15,15 @@ Optional branches are pose, belt-stripe candidate detection, classical masks,
 SAM masks, face/DMS preview, and appearance preview. They never replace the
 core uncertainty contract.
 
-The optional local Ollama/Mistral assistant is an explicit operator tool only.
+The optional assistant is an explicit operator tool only.
 `POST /api/assistant/ask` sends the user's question plus current structured
-seat/detection context to the local Ollama endpoint. It is never called for
-each detection, frame, alert, or persistence write, and its response is not
+seat/detection context to the configured provider: local Ollama by default, or
+an OpenAI-compatible hosted service such as Pollinations. It is never called
+for each detection, frame, alert, or persistence write, and its response is not
 treated as perception truth.
 
-The live workspace exposes this as **Ask local Mistral**. If Ollama or the
-configured model is unavailable, the UI reports that failure; it does not fall
+The live workspace exposes this as **Ask AI assistant**. If the configured
+provider or model is unavailable, the UI reports that failure; it does not fall
 back to fabricated text. The active detector stores real bounding-box geometry
 in PLOMID's `vector(4)` type. Semantic AI embeddings from the detector are not
 implemented because the loaded checkpoints do not provide a validated semantic

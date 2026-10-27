@@ -46,7 +46,8 @@ Runtime structured state is stored in PLOMID, not in application JSON/CSV
 sidecars. This includes current seat/occupant state, frame-level seat rows,
 age/gender and confidence semantics, belt/restraint/posture evidence, pose
 keypoints, specialist decisions, raw detection boxes, metrics, layouts, and
-assistant interactions with the exact context supplied to local Ollama/Mistral.
+assistant interactions with the exact context supplied to the configured AI
+provider (local Ollama by default, or an OpenAI-compatible hosted provider).
 `/api/live/state` is `odc.live.v1`; persisted seat rows expose
 `odc.seat-observation.v1`; `/api/assistant/history` exposes
 `odc.assistant-history.v1`. The Data model page (`/relations`) and
@@ -90,10 +91,16 @@ cp .env.example .env   # then edit; .env is gitignored, never committed
 `ODC_DETECTION__THRESHOLD`, … (nested `__` form). A YAML file passed via
 `--config` overrides everything except secrets handling.
 
-Optional local assistant: install Ollama, run `ollama pull mistral`, and keep
-the default `ODC_ASSISTANT__URL=http://127.0.0.1:11434`. Mistral is called only
-when an operator explicitly invokes `/api/assistant/ask`; it never runs in the
-frame loop and never writes AI-generated claims into PLOMID.
+Optional assistant: the default provider is local Ollama. Install Ollama, run
+`ollama pull mistral`, and keep
+`ODC_ASSISTANT__URL=http://127.0.0.1:11434`. For a no-login hosted demo, set
+`ODC_ASSISTANT__PROVIDER=pollinations`,
+`ODC_ASSISTANT__URL=https://text.pollinations.ai/openai`, and
+`ODC_ASSISTANT__MODEL=openai-fast`. The hosted provider receives the question
+and current cabin context; set `ODC_ASSISTANT__ENABLED=false` when external
+processing is not allowed. The assistant is called only when an operator
+explicitly invokes `/api/assistant/ask`; it never runs in the frame loop and
+never writes AI-generated claims into PLOMID.
 
 ## Honesty contract
 

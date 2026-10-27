@@ -1544,7 +1544,7 @@ def create_app(
 
     @app.post("/api/assistant/ask")
     async def api_assistant_ask(request: Request) -> Any:
-        """Explicit user-triggered local Mistral analysis; never automatic."""
+        """Explicit user-triggered assistant analysis; never automatic."""
         from pydantic import BaseModel, ConfigDict, Field
 
         class AskRequest(BaseModel):
@@ -1608,6 +1608,8 @@ def create_app(
             is_in_scope,
         )
 
+        provider = request.app.state.cfg.assistant.provider
+        model = request.app.state.cfg.assistant.model
         interaction_id = uuid4().hex
 
         def persist_interaction(
@@ -1685,32 +1687,29 @@ def create_app(
                 context,
                 OllamaConfig(
                     enabled=request.app.state.cfg.assistant.enabled,
+                    provider=provider,
                     url=request.app.state.cfg.assistant.url,
-                    model=request.app.state.cfg.assistant.model,
+                    model=model,
                     timeout_s=request.app.state.cfg.assistant.timeout_s,
                 ),
             )
         except OllamaUnavailable as exc:
-            persist_interaction(
-                "unavailable", "ollama", request.app.state.cfg.assistant.model, None, context
-            )
+            persist_interaction("unavailable", provider, model, None, context)
             return JSONResponse(
                 {
                     "error": str(exc),
-                    "provider": "ollama",
-                    "model": request.app.state.cfg.assistant.model,
+                    "provider": provider,
+                    "model": model,
                     "interaction_id": interaction_id,
                 },
                 status_code=503,
             )
-        persist_interaction(
-            "completed", "ollama", request.app.state.cfg.assistant.model, answer, context
-        )
+        persist_interaction("completed", provider, model, answer, context)
         return JSONResponse(
             {
                 "answer": answer,
-                "provider": "ollama",
-                "model": request.app.state.cfg.assistant.model,
+                "provider": provider,
+                "model": model,
                 "trigger": "explicit-user-request",
                 "interaction_id": interaction_id,
             }
